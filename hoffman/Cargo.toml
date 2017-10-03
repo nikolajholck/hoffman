@@ -1,0 +1,6 @@
+[package]
+name = "hoffman"
+version = "0.1.0"
+authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
+
+[dependencies]

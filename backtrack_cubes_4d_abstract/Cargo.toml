@@ -1,0 +1,7 @@
+[package]
+name = "backtrack_cubes_4d_abstract"
+version = "0.1.0"
+authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
+
+[dependencies]
+hoffman = { path = "../hoffman" }
