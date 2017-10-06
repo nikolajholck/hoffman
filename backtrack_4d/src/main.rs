@@ -59,7 +59,7 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
     //let mut successes: usize = 0;
 
     loop {
-        if i == N * N * N * N { // We have successfully placed N * N bricks.
+        if i == N * N * N * N { // We have successfully placed all bricks.
             println!("Iterations: {:?}", iteration);
             println!("Records: {:?}", records);
             return (positions, sizes);
@@ -94,7 +94,8 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
             tesseract::position_brick(&mut positions, &sizes, coord);
             increment_type_count(&mut type_counts, &next_brick, [x, y, z, w]);
             if tesseract::is_brick_valid(&positions, &sizes, coord, &comparator)
-            && validate_type_count(&type_counts, &next_brick, [x, y, z, w]) {
+            && validate_type_count(&type_counts, &next_brick, [x, y, z, w])
+            && !tesseract::makes_sharp_corner(&positions, &sizes, [x, y, z, w], &comparator) {
                 i += 1; // Go to next coord.
             } else {
                 sizes[x][y][z][w] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from sizes.

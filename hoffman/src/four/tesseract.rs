@@ -4,6 +4,41 @@ use super::*;
 
 pub type Tesseract = [[[[Point4D; N]; N]; N]; N];
 
+pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: [usize; N], comparator: &Comparator) -> bool {
+    let this_intervals = Point4D::make_intervals(&positions[coord[0]][coord[1]][coord[2]][coord[3]], &sizes[coord[0]][coord[1]][coord[2]][coord[3]]);
+    for i in 0..N {
+        if coord[i] > 0 {
+            let mut foundation_coord = coord.clone();
+            foundation_coord[i] -= 1;
+            let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+            let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+            if foundation_size == Point4D::ZERO {
+                continue;
+            }
+            let foundation_intervals = Point4D::make_intervals(&foundation_position, &foundation_size);
+            let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
+            for &dim in other_dims.iter() {
+                if coord[dim] + 1 < N {
+                    let mut other_coord = foundation_coord.clone();
+                    other_coord[dim] += 1;
+                    let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
+                    let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
+                    if other_size == Point4D::ZERO {
+                        continue;
+                    }
+                    let other_intervals = Point4D::make_intervals(&other_position, &other_size);
+                    let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
+                    let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
+                    if (first == None || first == Some(Ordering::Greater)) && (second == None || second == Some(Ordering::Greater)) {
+                        return true
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 /*
 pub fn plot(positions: &Solid, sizes: &Solid, brick: &[IntType], name: &String) {
     let dim_labels = ["x", "y", "z"];
