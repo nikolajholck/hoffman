@@ -1,0 +1,8 @@
+[package]
+name = "comparisons"
+version = "0.1.0"
+authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
+
+[dependencies]
+hoffman = { path = "../hoffman" }
+colored = "1.5"
