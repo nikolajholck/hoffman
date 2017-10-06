@@ -41,6 +41,7 @@ pub struct Figure {
 
 impl Rectangle {
     fn to_svg(&self, colors: &HashMap<IntType, usize>) -> String {
+        if self.width == 0 || self.height == 0 { return format!("") }
         format!("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" style=\"fill:{};stroke:#000;stroke-width:1;\" vector-effect=\"non-scaling-stroke\" />",
         self.x, self.y, self.width, self.height, COLORS[colors[&(self.width + self.height)]])
     }
