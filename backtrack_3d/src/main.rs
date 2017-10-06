@@ -97,7 +97,7 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
     //let mut type_counts: HashMap<IntType, usize> = HashMap::with_capacity(N);
 
     loop {
-        if i == N * N * N { // We have successfully placed N * N bricks.
+        if i == N * N * N { // We have successfully placed all bricks.
             packings.push((positions, sizes));
             if successes == 0 {
                 println!("Iterations: {:?}", iteration);

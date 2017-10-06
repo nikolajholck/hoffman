@@ -5,7 +5,7 @@ use super::*;
 pub type Square = [[Point2D; N]; N];
 pub type Kernel = [[Point2D; KERNEL_DIM]; KERNEL_DIM];
 
-pub fn kernel_plot(sizes: &Kernel, brick: &[IntType], name: &String) {
+pub fn kernel_plot(sizes: &Kernel, brick: &[IntType; N], name: &String) {
     let mut plots = Vec::new();
     let center: IntType = brick.iter().sum::<IntType>() / 2;
 

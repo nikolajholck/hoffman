@@ -4,7 +4,7 @@ use super::*;
 
 pub type Cube = [[[Point3D; N]; N]; N];
 
-pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType], name: &String) {
+pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String) {
     let dim_labels = ["x", "y", "z"];
     let dims = (0..N).collect::<Vec<usize>>();
     let mut plots = Vec::new();
