@@ -22,43 +22,13 @@ fn main() {
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("3D Packing {}", i);
         cube::plot(&positions, &sizes, &brick, &name);
-
-        //print_stats(&positions, &sizes);
     }
+
+    check_duality(packings, &brick, &comparator);
 
     println!("Time spent making packings: {:?} s", now.elapsed().as_secs());
 
 }
-
-/*fn print_stats(positions: &cube::Cube, sizes: &cube::Cube) {
-    let mut okay = 0;
-    let mut fail = 0;
-    for dim in 0..N {
-        let dims_to_keep = (0..N).filter(|&v| v != dim).collect::<Vec<usize>>();
-        for a in 0..N {
-            for b in 0..N {
-                let mut line = Vec::new();
-                for i in 0..N {
-                    let mut index = vec!(a, b);
-                    index.insert(dim, i);
-                    line.push(sizes[index[0]][index[1]][index[2]]);
-                }
-
-                //for keep in dims_to_keep.iter() {
-                let keep = dims_to_keep[1];
-                if line.iter().map(|p| p[keep]).collect::<HashSet<_>>().len() == 3 {
-                    okay += 1;
-                } else {
-                    fail += 1;
-                }
-                //}
-
-
-            }
-        }
-    }
-    println!("Packing: Okay: {}, Fail: {}", okay, fail);
-}*/
 
 fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cube::Cube)> {
     let mut type_counts: Vec<Vec<HashMap<IntType, usize>>> = Vec::new();
@@ -169,4 +139,50 @@ fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count += 1;
     }
+}
+
+fn check_duality(packings: Vec<(cube::Cube, cube::Cube)>, brick: &Brick, comparator: &Comparator) {
+    let dims = (0..N).collect::<Vec<_>>();
+    let permutations = permutations(&dims, N);
+    for permutation in permutations.iter() {
+        println!("Checking for dual using permutation {:?}:", permutation);
+        let res = packings.iter().enumerate().map(|(i, &(_positions, sizes))| {
+            if let Some(_) = apply_permutation(&sizes, &permutation, brick, comparator) {
+                format!("{}", i)
+            } else {
+                format!("")
+            }
+        }).filter(|s| s.len() > 0 ).collect::<Vec<_>>().join(", ");
+        println!("{}", res);
+    }
+}
+
+fn apply_permutation(sizes: &cube::Cube, permutation: &[usize], brick: &Brick, comparator: &Comparator) -> Option<(cube::Cube, cube::Cube)> {
+    let mut map = HashMap::new();
+    for (i, v) in brick.iter().enumerate() {
+        map.insert(v, i);
+    }
+    let mut perm_sizes = [[[Point3D::ZERO; N]; N]; N];
+    let mut perm_positions = [[[Point3D::ZERO; N]; N]; N];
+    let mut coords = [(0, 0, 0); N * N * N];
+    for (i, coord) in coords.iter_mut().enumerate() {
+        coord.0 = (i / (N * N)) % N;
+        coord.1 = (i / N) % N;
+        coord.2 = i % N;
+    }
+    for &(x, y, z) in coords.iter() {
+        let size = sizes[x][y][z];
+        let mut perm_size = Point3D::ZERO;
+        for i in 0..N {
+            perm_size[i] = brick[permutation[map[&size[i]]]];
+        }
+        perm_sizes[x][y][z] = perm_size;
+        cube::position_brick(&mut perm_positions, &perm_sizes, (x, y, z));
+        if !cube::is_brick_valid(&perm_positions, &perm_sizes, (x, y, z), comparator) {
+            return None;
+        }
+    }
+    let name = format!("3D Dual {:?}", permutation);
+    cube::plot(&perm_positions, &perm_sizes, &brick, &name);
+    Some((perm_positions, perm_sizes))
 }
