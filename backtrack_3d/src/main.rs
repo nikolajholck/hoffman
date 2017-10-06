@@ -134,7 +134,8 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
             cube::position_brick(&mut positions, &sizes, coord);
             increment_type_count(&mut type_counts, &next_brick, [x, y, z]);
             if cube::is_brick_valid(&positions, &sizes, coord, &comparator)
-            && validate_type_count(&type_counts, &next_brick, [x, y, z]) {
+            && validate_type_count(&type_counts, &next_brick, [x, y, z])
+            && !cube::makes_sharp_corner(&positions, &sizes, [x, y, z], &comparator) {
                 i += 1; // Go to next coord.
             } else {
                 sizes[x][y][z] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from sizes.

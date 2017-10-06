@@ -101,6 +101,41 @@ pub fn drain_symmetries(packings: &mut Vec<(Cube, Cube)>) {
     }
 }
 
+pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: [usize; N], comparator: &Comparator) -> bool {
+    let this_intervals = Point3D::make_intervals(&positions[coord[0]][coord[1]][coord[2]], &sizes[coord[0]][coord[1]][coord[2]]);
+    for i in 0..N {
+        if coord[i] > 0 {
+            let mut foundation_coord = coord.clone();
+            foundation_coord[i] -= 1;
+            let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
+            let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
+            if foundation_size == Point3D::ZERO {
+                continue;
+            }
+            let foundation_intervals = Point3D::make_intervals(&foundation_position, &foundation_size);
+            let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
+            for &dim in other_dims.iter() {
+                if coord[dim] + 1 < N {
+                    let mut other_coord = foundation_coord.clone();
+                    other_coord[dim] += 1;
+                    let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]];
+                    let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]];
+                    if other_size == Point3D::ZERO {
+                        continue;
+                    }
+                    let other_intervals = Point3D::make_intervals(&other_position, &other_size);
+                    let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
+                    let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
+                    if (first == None || first == Some(Ordering::Greater)) && (second == None || second == Some(Ordering::Greater)) {
+                        return true
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 pub fn position_brick(positions: &mut Cube, &sizes: &Cube, (x, y, z): (usize, usize, usize)) {
     let x_pos = if x == 0 { 0 } else {
         positions[x - 1][y][z].x + sizes[x - 1][y][z].x
