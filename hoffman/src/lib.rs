@@ -39,6 +39,8 @@ pub struct Point2D {
 }
 
 impl Point2D {
+    pub const ZERO: Point2D = Point2D { x: 0, y: 0 };
+
     pub fn make_intervals(position: &Point2D, size: &Point2D) -> [Interval; 2] {
         [Interval { begin: position.x, end: position.x + size.x },
          Interval { begin: position.y, end: position.y + size.y }]
@@ -81,6 +83,8 @@ pub struct Point3D {
 }
 
 impl Point3D {
+    pub const ZERO: Point3D = Point3D { x: 0, y: 0, z: 0 };
+
     pub fn make_intervals(position: &Point3D, size: &Point3D) -> [Interval; 3] {
         [Interval { begin: position.x, end: position.x + size.x },
          Interval { begin: position.y, end: position.y + size.y },
@@ -127,6 +131,8 @@ pub struct Point4D {
 }
 
 impl Point4D {
+    pub const ZERO: Point4D = Point4D { x: 0, y: 0, z: 0, w: 0 };
+
     pub fn make_intervals(position: &Point4D, size: &Point4D) -> [Interval; 4] {
         [Interval { begin: position.x, end: position.x + size.x },
          Interval { begin: position.y, end: position.y + size.y },
