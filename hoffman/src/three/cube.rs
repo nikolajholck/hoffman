@@ -103,30 +103,70 @@ pub fn drain_symmetries(packings: &mut Vec<(Cube, Cube)>) {
 
 pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: [usize; N], comparator: &Comparator) -> bool {
     let this_intervals = Point3D::make_intervals(&positions[coord[0]][coord[1]][coord[2]], &sizes[coord[0]][coord[1]][coord[2]]);
-    for i in 0..N {
-        if coord[i] > 0 {
+    let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
+    for &i in &directions {
+        let mut foundation_coord = coord.clone();
+        foundation_coord[i] -= 1;
+        let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
+        let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
+        if foundation_size == Point3D::ZERO { continue }
+        let foundation_intervals = Point3D::make_intervals(&foundation_position, &foundation_size);
+        let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
+        for &dim in &other_dims {
+            if coord[dim] + 1 < N {
+                let mut other_coord = coord.clone();
+                other_coord[i] -= 1;
+                other_coord[dim] += 1;
+                let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]];
+                let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]];
+                if other_size == Point3D::ZERO { continue }
+                let other_intervals = Point3D::make_intervals(&other_position, &other_size);
+                let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
+                let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
+                if (first == None || first == Some(Ordering::Greater))
+                && (second == None || second == Some(Ordering::Greater)) {
+                    return true
+                }
+            }
+        }
+    }
+    if directions.len() >= 2 {
+        let combs = combinations(&directions, 2);
+        for comb in &combs {
             let mut foundation_coord = coord.clone();
-            foundation_coord[i] -= 1;
+            foundation_coord[comb[0]] -= 1;
+            foundation_coord[comb[1]] -= 1;
             let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
             let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]];
-            if foundation_size == Point3D::ZERO {
-                continue;
-            }
+            if foundation_size == Point3D::ZERO { continue }
             let foundation_intervals = Point3D::make_intervals(&foundation_position, &foundation_size);
-            let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
-            for &dim in other_dims.iter() {
+            let other_dims = list_except(&(0..N).collect::<Vec<_>>(), &comb);
+            for &dim in &other_dims {
                 if coord[dim] + 1 < N {
-                    let mut other_coord = foundation_coord.clone();
-                    other_coord[dim] += 1;
-                    let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]];
-                    let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]];
-                    if other_size == Point3D::ZERO {
-                        continue;
-                    }
-                    let other_intervals = Point3D::make_intervals(&other_position, &other_size);
+                    let mut a_other_coord = coord.clone();
+                    a_other_coord[comb[0]] -= 1;
+                    a_other_coord[dim] += 1;
+                    let a_other_position = positions[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]];
+                    let a_other_size = sizes[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]];
+                    if a_other_size == Point3D::ZERO { continue }
+
+                    let mut b_other_coord = coord.clone();
+                    b_other_coord[comb[1]] -= 1;
+                    b_other_coord[dim] += 1;
+                    let b_other_position = positions[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]];
+                    let b_other_size = sizes[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]];
+                    if b_other_size == Point3D::ZERO { continue }
+
+                    let a_other_intervals = Point3D::make_intervals(&a_other_position, &a_other_size);
+                    let b_other_intervals = Point3D::make_intervals(&b_other_position, &b_other_size);
+
                     let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
-                    let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
-                    if (first == None || first == Some(Ordering::Greater)) && (second == None || second == Some(Ordering::Greater)) {
+                    let second = comparator.compare(foundation_intervals[comb[0]].end, a_other_intervals[comb[0]].end);
+                    let third = comparator.compare(foundation_intervals[comb[1]].end, b_other_intervals[comb[1]].end);
+
+                    if (first == None || first == Some(Ordering::Greater))
+                    && (second == None || second == Some(Ordering::Greater))
+                    && (third == None || third == Some(Ordering::Greater)) {
                         return true
                     }
                 }

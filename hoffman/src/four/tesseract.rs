@@ -52,30 +52,127 @@ pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name
 
 pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: [usize; N], comparator: &Comparator) -> bool {
     let this_intervals = Point4D::make_intervals(&positions[coord[0]][coord[1]][coord[2]][coord[3]], &sizes[coord[0]][coord[1]][coord[2]][coord[3]]);
-    for i in 0..N {
-        if coord[i] > 0 {
+    let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
+    for &i in &directions {
+        let mut foundation_coord = coord.clone();
+        foundation_coord[i] -= 1;
+        let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+        let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+        if foundation_size == Point4D::ZERO { continue }
+        let foundation_intervals = Point4D::make_intervals(&foundation_position, &foundation_size);
+        let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
+        for &dim in other_dims.iter() {
+            if coord[dim] + 1 < N {
+                let mut other_coord = coord.clone();
+                other_coord[i] -= 1;
+                other_coord[dim] += 1;
+                let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
+                let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
+                if other_size == Point4D::ZERO { continue }
+                let other_intervals = Point4D::make_intervals(&other_position, &other_size);
+                let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
+                let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
+                if (first == None || first == Some(Ordering::Greater))
+                && (second == None || second == Some(Ordering::Greater)) {
+                    return true
+                }
+            }
+        }
+    }
+    if directions.len() >= 2 {
+        let combs = combinations(&directions, 2);
+        for comb in &combs {
             let mut foundation_coord = coord.clone();
-            foundation_coord[i] -= 1;
+            foundation_coord[comb[0]] -= 1;
+            foundation_coord[comb[1]] -= 1;
             let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
             let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
-            if foundation_size == Point4D::ZERO {
-                continue;
-            }
+            if foundation_size == Point4D::ZERO { continue }
             let foundation_intervals = Point4D::make_intervals(&foundation_position, &foundation_size);
-            let other_dims = (0..N).filter(|&v| v != i).collect::<Vec<_>>();
-            for &dim in other_dims.iter() {
+            let other_dims = list_except(&(0..N).collect::<Vec<_>>(), &comb);
+            for &dim in &other_dims {
                 if coord[dim] + 1 < N {
-                    let mut other_coord = foundation_coord.clone();
-                    other_coord[dim] += 1;
-                    let other_position = positions[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
-                    let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]][other_coord[3]];
-                    if other_size == Point4D::ZERO {
-                        continue;
-                    }
-                    let other_intervals = Point4D::make_intervals(&other_position, &other_size);
+                    let mut a_other_coord = coord.clone();
+                    a_other_coord[comb[0]] -= 1;
+                    a_other_coord[dim] += 1;
+                    let a_other_position = positions[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]][a_other_coord[3]];
+                    let a_other_size = sizes[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]][a_other_coord[3]];
+                    if a_other_size == Point4D::ZERO { continue }
+
+                    let mut b_other_coord = coord.clone();
+                    b_other_coord[comb[1]] -= 1;
+                    b_other_coord[dim] += 1;
+                    let b_other_position = positions[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]][b_other_coord[3]];
+                    let b_other_size = sizes[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]][b_other_coord[3]];
+                    if b_other_size == Point4D::ZERO { continue }
+
+                    let a_other_intervals = Point4D::make_intervals(&a_other_position, &a_other_size);
+                    let b_other_intervals = Point4D::make_intervals(&b_other_position, &b_other_size);
+
                     let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
-                    let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
-                    if (first == None || first == Some(Ordering::Greater)) && (second == None || second == Some(Ordering::Greater)) {
+                    let second = comparator.compare(foundation_intervals[comb[0]].end, a_other_intervals[comb[0]].end);
+                    let third = comparator.compare(foundation_intervals[comb[1]].end, b_other_intervals[comb[1]].end);
+
+                    if (first == None || first == Some(Ordering::Greater))
+                    && (second == None || second == Some(Ordering::Greater))
+                    && (third == None || third == Some(Ordering::Greater)) {
+                        //println!("3D Sharp");
+                        return true
+                    }
+                }
+            }
+        }
+    }
+    if directions.len() >= 3 {
+        let combs = combinations(&directions, 3);
+        for comb in &combs {
+            let mut foundation_coord = coord.clone();
+            foundation_coord[comb[0]] -= 1;
+            foundation_coord[comb[1]] -= 1;
+            foundation_coord[comb[2]] -= 1;
+            let foundation_position = positions[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+            let foundation_size = sizes[foundation_coord[0]][foundation_coord[1]][foundation_coord[2]][foundation_coord[3]];
+            if foundation_size == Point4D::ZERO { continue }
+            let foundation_intervals = Point4D::make_intervals(&foundation_position, &foundation_size);
+            let other_dims = list_except(&(0..N).collect::<Vec<_>>(), &comb);
+            //println!("4 other len: {:?}", other_dims.len());
+            for &dim in &other_dims {
+                if coord[dim] + 1 < N {
+                    let mut a_other_coord = coord.clone();
+                    a_other_coord[comb[0]] -= 1;
+                    a_other_coord[dim] += 1;
+                    let a_other_position = positions[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]][a_other_coord[3]];
+                    let a_other_size = sizes[a_other_coord[0]][a_other_coord[1]][a_other_coord[2]][a_other_coord[3]];
+                    if a_other_size == Point4D::ZERO { continue }
+
+                    let mut b_other_coord = coord.clone();
+                    b_other_coord[comb[1]] -= 1;
+                    b_other_coord[dim] += 1;
+                    let b_other_position = positions[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]][b_other_coord[3]];
+                    let b_other_size = sizes[b_other_coord[0]][b_other_coord[1]][b_other_coord[2]][b_other_coord[3]];
+                    if b_other_size == Point4D::ZERO { continue }
+
+                    let mut c_other_coord = coord.clone();
+                    c_other_coord[comb[2]] -= 1;
+                    c_other_coord[dim] += 1;
+                    let c_other_position = positions[c_other_coord[0]][c_other_coord[1]][c_other_coord[2]][c_other_coord[3]];
+                    let c_other_size = sizes[c_other_coord[0]][c_other_coord[1]][c_other_coord[2]][c_other_coord[3]];
+                    if c_other_size == Point4D::ZERO { continue }
+
+                    let a_other_intervals = Point4D::make_intervals(&a_other_position, &a_other_size);
+                    let b_other_intervals = Point4D::make_intervals(&b_other_position, &b_other_size);
+                    let c_other_intervals = Point4D::make_intervals(&c_other_position, &c_other_size);
+
+                    let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
+                    let second = comparator.compare(foundation_intervals[comb[0]].end, a_other_intervals[comb[0]].end);
+                    let third = comparator.compare(foundation_intervals[comb[1]].end, b_other_intervals[comb[1]].end);
+                    let fourth = comparator.compare(foundation_intervals[comb[2]].end, c_other_intervals[comb[2]].end);
+
+                    if (first == None || first == Some(Ordering::Greater))
+                    && (second == None || second == Some(Ordering::Greater))
+                    && (third == None || third == Some(Ordering::Greater))
+                    && (fourth == None || fourth == Some(Ordering::Greater)) {
+                        println!("4D Sharp");
                         return true
                     }
                 }
