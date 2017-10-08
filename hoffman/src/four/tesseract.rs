@@ -49,7 +49,7 @@ pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name
     figure.save(&format!("tesseracts/{}", name));
 }
 
-pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: [usize; N], comparator: &Comparator) -> bool {
+pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: &[usize; N], comparator: &Comparator) -> bool {
     let this_intervals = Point4D::make_intervals(&positions[coord[0]][coord[1]][coord[2]][coord[3]], &sizes[coord[0]][coord[1]][coord[2]][coord[3]]);
     let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
     for &i in &directions {
@@ -344,48 +344,34 @@ pub fn symmetries(plane: &Plane) -> [Plane; 8] {
 
 }*/
 
-pub fn position_brick(positions: &mut Tesseract, sizes: &Tesseract, (x, y, z, w): (usize, usize, usize, usize)) {
-    let x_pos = if x == 0 { 0 } else {
-        positions[x - 1][y][z][w].x + sizes[x - 1][y][z][w].x
-    };
-    let y_pos = if y == 0 { 0 } else {
-        positions[x][y - 1][z][w].y + sizes[x][y - 1][z][w].y
-    };
-    let z_pos = if z == 0 { 0 } else {
-        positions[x][y][z - 1][w].z + sizes[x][y][z - 1][w].z
-    };
-    let w_pos = if w == 0 { 0 } else {
-        positions[x][y][z][w - 1].w + sizes[x][y][z][w - 1].w
-    };
-    positions[x][y][z][w] = Point4D { x: x_pos, y: y_pos, z: z_pos, w: w_pos };
+pub fn position_brick(positions: &mut Tesseract, sizes: &Tesseract, coord: &[usize; N]) {
+    let mut pos = Point4D::ZERO;
+    for (dim, &c) in coord.iter().enumerate() {
+        if c > 0 {
+            let mut index = coord.clone();
+            index[dim] -= 1;
+            pos[dim] = positions[index[0]][index[1]][index[2]][index[3]][dim] + sizes[index[0]][index[1]][index[2]][index[3]][dim]
+        }
+    }
+    positions[coord[0]][coord[1]][coord[2]][coord[3]] = pos;
 }
 
-pub fn is_brick_valid(positions: &Tesseract, sizes: &Tesseract, (x, y, z, w): (usize, usize, usize, usize), comparator: &Comparator) -> bool {
-    let brick = sizes[x][y][z][w];
-    for i in 0..N {
-        if i != w && sizes[x][y][z][i].w == brick.w {
-            return false
+pub fn is_brick_valid(positions: &Tesseract, sizes: &Tesseract, coord: &[usize; N], comparator: &Comparator) -> bool {
+    let brick = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][index[2]][index[3]][dim] == brick[dim] {
+                return false
+            }
         }
     }
-    for i in 0..N {
-        if i != z && sizes[x][y][i][w].z == brick.z {
-            return false
-        }
-    }
-    for i in 0..N {
-        if i != y && sizes[x][i][z][w].y == brick.y {
-            return false
-        }
-    }
-    for i in 0..N {
-        if i != x && sizes[i][y][z][w].x == brick.x {
-            return false
-        }
-    }
-    !does_intersect(&positions, &sizes, (x, y, z, w), &comparator)
+    !does_intersect(&positions, &sizes, &coord, &comparator)
 }
 
-pub fn does_intersect(positions: &Tesseract, sizes: &Tesseract, (x, y, z, w): (usize, usize, usize, usize), comparator: &Comparator) -> bool {
+pub fn does_intersect(positions: &Tesseract, sizes: &Tesseract, coord: &[usize; N], comparator: &Comparator) -> bool {
+    let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
     let this_intervals = Point4D::make_intervals(&positions[x][y][z][w], &sizes[x][y][z][w]);
 
     let other_x_b = if x == 0 { 0 } else { x - 1 };

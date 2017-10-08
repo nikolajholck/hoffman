@@ -32,26 +32,23 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
     }
     println!("{:?}", type_counts);
 
-    let mut rotations = [Point4D { x: 0, y: 0, z: 0, w: 0 }; N * (N - 1) * (N - 2) * (N - 3)];
+    let mut rotations = [Point4D::ZERO; N * (N - 1) * (N - 2) * (N - 3)];
     for (i, permutation) in permutations(brick, N).iter().enumerate() {
         rotations[i] = Point4D { x: permutation[0], y: permutation[1], z: permutation[2], w: permutation[3] };
     }
     println!("Rotations: {:?}", rotations.len());
 
-    let mut coords = [(0, 0, 0, 0); N * N * N * N];
+    let mut coords = [[0; N]; N * N * N * N];
     for (i, coord) in coords.iter_mut().enumerate() {
-        coord.0 = (i / (N * N * N)) % N;
-        coord.1 = (i / (N * N)) % N;
-        coord.2 = (i / N) % N;
-        coord.3 = i % N;
+        coord[0] = (i / (N * N * N)) % N;
+        coord[1] = (i / (N * N)) % N;
+        coord[2] = (i / N) % N;
+        coord[3] = i % N;
     }
     println!("Coords: {:?}", coords.len());
-    /*for coord in coords.iter() {
-        println!("Coord: {:?}", coord);
-    }*/
 
-    let mut positions = [[[[Point4D { x: 0, y: 0, z: 0, w: 0 }; N]; N]; N]; N];
-    let mut sizes = [[[[Point4D { x: 0, y: 0, z: 0, w: 0 }; N]; N]; N]; N];
+    let mut positions = [[[[Point4D::ZERO; N]; N]; N]; N];
+    let mut sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
     let mut records = [[[[0; N]; N]; N]; N];
 
     let mut i: usize = 0;
@@ -65,14 +62,15 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
             return (positions, sizes);
             //successes += 1;
             i = i - 1; // Carry on.
-            let (px, py, pz, pw) = coords[i];
-            decrement_type_count(&mut type_counts, &sizes[px][py][pz][pw], [px, py, pz, pw]);
-            sizes[px][py][pz][pw] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from sizes.
-            positions[px][py][pz][pw] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from positions.
+            let p = coords[i];
+            let (px, py, pz, pw) = (p[0], p[1], p[2], p[3]);
+            decrement_type_count(&mut type_counts, &sizes[px][py][pz][pw], &p);
+            sizes[px][py][pz][pw] = Point4D::ZERO; // Remove brick from sizes.
+            positions[px][py][pz][pw] = Point4D::ZERO; // Remove brick from positions.
         }
 
         let coord = coords[i];
-        let (x, y, z, w) = coord;
+        let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
         let max_tries = rotations.len();
 
         if records[x][y][z][w] == max_tries { // We have tried all rotations at this coord.
@@ -83,48 +81,54 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
             }
             records[x][y][z][w] = 0; // Reset tries.
             i -= 1; // Backtrack.
-            let (px, py, pz, pw) = coords[i];
-            decrement_type_count(&mut type_counts, &sizes[px][py][pz][pw], [px, py, pz, pw]);
-            sizes[px][py][pz][pw] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from sizes.
-            positions[px][py][pz][pw] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from positions.
+            let p = coords[i];
+            let (px, py, pz, pw) = (p[0], p[1], p[2], p[3]);
+            decrement_type_count(&mut type_counts, &sizes[px][py][pz][pw], &p);
+            sizes[px][py][pz][pw] = Point4D::ZERO; // Remove brick from sizes.
+            positions[px][py][pz][pw] = Point4D::ZERO; // Remove brick from positions.
         } else { // We'll try placing a brick.
             let next_brick = rotations[records[x][y][z][w]];
             records[x][y][z][w] += 1; // Register that this rotation has been tried.
             sizes[x][y][z][w] = next_brick;
-            tesseract::position_brick(&mut positions, &sizes, coord);
-            increment_type_count(&mut type_counts, &next_brick, [x, y, z, w]);
-            if tesseract::is_brick_valid(&positions, &sizes, coord, &comparator)
-            && validate_type_count(&type_counts, &next_brick, [x, y, z, w])
-            && !tesseract::makes_sharp_corner(&positions, &sizes, [x, y, z, w], &comparator) {
+            tesseract::position_brick(&mut positions, &sizes, &coord);
+            increment_type_count(&mut type_counts, &next_brick, &coord);
+            if tesseract::is_brick_valid(&positions, &sizes, &coord, &comparator)
+            && validate_type_count(&type_counts, &next_brick, &coord)
+            && !tesseract::makes_sharp_corner(&positions, &sizes, &coord, &comparator) {
                 i += 1; // Go to next coord.
             } else {
-                sizes[x][y][z][w] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from sizes.
-                positions[x][y][z][w] = Point4D { x: 0, y: 0, z: 0, w: 0 }; // Remove brick from positions.
-                decrement_type_count(&mut type_counts, &next_brick, [x, y, z, w]);
+                sizes[x][y][z][w] = Point4D::ZERO; // Remove brick from sizes.
+                positions[x][y][z][w] = Point4D::ZERO; // Remove brick from positions.
+                decrement_type_count(&mut type_counts, &next_brick, &coord);
             }
         }
 
         iteration += 1;
         if iteration % 10_000_000 == 0 {
-            println!("Status: Iteration {:?}, i: {:?}, record: {:?}", iteration, i, records[0][0]);
+            println!("Status: Iteration {:?}, i: {:?}, records:", iteration, i);
+            for row in &records[1] {
+                println!("{:?}", row);
+            }
+            let name = format!("4D Packing {}", iteration);
+            tesseract::plot(&positions, &sizes, brick, &name);
         }
     }
     println!("Total iterations {:?}", iteration);
     panic!("Too good to be true!");
 }
 
-fn validate_type_count(counts: &Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: [usize; N]) -> bool {
-    coord.iter().enumerate().all(|(i, &v)| counts[i][v][&brick[i]] <= 16)
+fn validate_type_count(counts: &Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: &[usize; N]) -> bool {
+    coord.iter().enumerate().all(|(i, &v)| counts[i][v][&brick[i]] <= N * N)
 }
 
-fn decrement_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: [usize; N]) {
+fn decrement_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: &[usize; N]) {
     for i in 0..N {
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count -= 1;
     }
 }
 
-fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: [usize; N]) {
+fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point4D, coord: &[usize; N]) {
     for i in 0..N {
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count += 1;
