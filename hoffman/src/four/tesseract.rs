@@ -8,7 +8,6 @@ pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name
     let dim_labels = ["x", "y", "z", "w"];
     let dims = (0..N).collect::<Vec<usize>>();
     let fixed_dims = combinations(&dims, 2);
-    println!("Fixed dims: {:?}", fixed_dims);
     let mut plots = Vec::new();
     for fixed in fixed_dims.iter() {
         for level0 in 0..N {
@@ -181,49 +180,6 @@ pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: [usiz
     }
     false
 }
-
-/*
-pub fn plot(positions: &Solid, sizes: &Solid, brick: &[IntType], name: &String) {
-    let dim_labels = ["x", "y", "z"];
-    let dims = (0..3).collect::<Vec<usize>>();
-    let mut plots = Vec::new();
-    for dim in 0..3 {
-        for level in 0..N {
-            let mut rects = Vec::new();
-            for i in 0..N {
-                for j in 0..N {
-                    let mut index = vec!(i, j);
-                    index.insert(dim, level);
-                    let plane_dims = list_except(&dims, &[dim]);
-                    let position = positions[index[0]][index[1]][index[2]];
-                    let size = sizes[index[0]][index[1]][index[2]];
-                    let rectangle = plot::Rectangle {
-                        x: position[plane_dims[0]], y: position[plane_dims[1]],
-                        width: size[plane_dims[0]], height: size[plane_dims[1]]
-                    };
-                    rects.push(rectangle);
-                }
-            }
-            let plane_name = list_except(&dim_labels, &[dim_labels[dim]]).join("");
-            let plot_name = format!("{}-plane at {}={}", plane_name, dim_labels[dim], level);
-
-            let plot = plot::Plot {
-                name: Some(plot_name),
-                rectangles: rects
-            };
-            plots.push(plot);
-        }
-    }
-    let figure = plot::Figure {
-        name: None,
-        plots: plots,
-        brick: brick.to_vec(),
-        rows: 3,
-        columns: N
-    };
-    figure.save(&format!("solids/{}", name));
-}*/
-
 
 /*
 pub fn symmetries(solid: &Solid) -> Vec<Solid> {
