@@ -41,30 +41,29 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
     }
     println!("{:?}", type_counts);
 
-    let mut rotations = [Point3D { x: 0, y: 0, z: 0 }; N * (N - 1) * (N - 2)];
+    let mut rotations = [Point3D::ZERO; N * (N - 1) * (N - 2)];
     for (i, permutation) in permutations(brick, 3).iter().enumerate() {
         rotations[i] = Point3D { x: permutation[0], y: permutation[1], z: permutation[2] };
     }
     println!("Rotations: {:?}", rotations.len());
 
-    let mut coords = [(0, 0, 0); N * N * N];
+    let mut coords = [[0; N]; N * N * N];
     for (i, coord) in coords.iter_mut().enumerate() {
-        coord.0 = (i / (N * N)) % N;
-        coord.1 = (i / N) % N;
-        coord.2 = i % N;
+        coord[0] = (i / (N * N)) % N;
+        coord[1] = (i / N) % N;
+        coord[2] = i % N;
     }
     println!("Coords: {:?}", coords.len());
 
     let mut packings = Vec::new();
 
-    let mut positions = [[[Point3D { x: 0, y: 0, z: 0 }; N]; N]; N];
-    let mut sizes = [[[Point3D { x: 0, y: 0, z: 0 }; N]; N]; N];
+    let mut positions = [[[Point3D::ZERO; N]; N]; N];
+    let mut sizes = [[[Point3D::ZERO; N]; N]; N];
     let mut records = [[[0; N]; N]; N];
 
     let mut i: usize = 0;
     let mut iteration: usize = 0;
     let mut successes: usize = 0;
-    //let mut type_counts: HashMap<IntType, usize> = HashMap::with_capacity(N);
 
     loop {
         if i == N * N * N { // We have successfully placed all bricks.
@@ -75,14 +74,15 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
             }
             successes += 1;
             i = i - 1; // Carry on.
-            let (px, py, pz) = coords[i];
-            decrement_type_count(&mut type_counts, &sizes[px][py][pz], [px, py, pz]);
-            sizes[px][py][pz] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from sizes.
-            positions[px][py][pz] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from positions.
+            let p = coords[i];
+            let (px, py, pz) = (p[0], p[1], p[2]);
+            decrement_type_count(&mut type_counts, &sizes[px][py][pz], &p);
+            sizes[px][py][pz] = Point3D::ZERO; // Remove brick from sizes.
+            positions[px][py][pz] = Point3D::ZERO; // Remove brick from positions.
         }
 
         let coord = coords[i];
-        let (x, y, z) = coord;
+        let (x, y, z) = (coord[0], coord[1], coord[2]);
         let max_tries = rotations.len();
 
         if records[x][y][z] == max_tries { // We have tried all rotations at this coord.
@@ -93,24 +93,25 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
             }
             records[x][y][z] = 0; // Reset tries.
             i -= 1; // Backtrack.
-            let (px, py, pz) = coords[i];
-            decrement_type_count(&mut type_counts, &sizes[px][py][pz], [px, py, pz]);
-            sizes[px][py][pz] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from sizes.
-            positions[px][py][pz] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from positions.
+            let p = coords[i];
+            let (px, py, pz) = (p[0], p[1], p[2]);
+            decrement_type_count(&mut type_counts, &sizes[px][py][pz], &p);
+            sizes[px][py][pz] = Point3D::ZERO; // Remove brick from sizes.
+            positions[px][py][pz] = Point3D::ZERO; // Remove brick from positions.
         } else { // We'll try placing a brick.
             let next_brick = rotations[records[x][y][z]];
             records[x][y][z] += 1; // Register that this rotation has been tried.
             sizes[x][y][z] = next_brick;
-            cube::position_brick(&mut positions, &sizes, coord);
-            increment_type_count(&mut type_counts, &next_brick, [x, y, z]);
-            if cube::is_brick_valid(&positions, &sizes, coord, &comparator)
-            && validate_type_count(&type_counts, &next_brick, [x, y, z])
-            && !cube::makes_sharp_corner(&positions, &sizes, [x, y, z], &comparator) {
+            cube::position_brick(&mut positions, &sizes, &coord);
+            increment_type_count(&mut type_counts, &next_brick, &coord);
+            if cube::is_brick_valid(&positions, &sizes, &coord, &comparator)
+            && validate_type_count(&type_counts, &next_brick, &coord)
+            && !cube::makes_sharp_corner(&positions, &sizes, &coord, &comparator) {
                 i += 1; // Go to next coord.
             } else {
-                sizes[x][y][z] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from sizes.
-                positions[x][y][z] = Point3D { x: 0, y: 0, z: 0 }; // Remove brick from positions.
-                decrement_type_count(&mut type_counts, &next_brick, [x, y, z]);
+                sizes[x][y][z] = Point3D::ZERO; // Remove brick from sizes.
+                positions[x][y][z] = Point3D::ZERO; // Remove brick from positions.
+                decrement_type_count(&mut type_counts, &next_brick, &coord);
             }
         }
 
@@ -123,18 +124,18 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
     packings
 }
 
-fn validate_type_count(counts: &Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: [usize; N]) -> bool {
+fn validate_type_count(counts: &Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: &[usize; N]) -> bool {
     coord.iter().enumerate().all(|(i, &v)| counts[i][v][&brick[i]] <= N)
 }
 
-fn decrement_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: [usize; N]) {
+fn decrement_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: &[usize; N]) {
     for i in 0..N {
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count -= 1;
     }
 }
 
-fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: [usize; N]) {
+fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &Point3D, coord: &[usize; N]) {
     for i in 0..N {
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count += 1;
@@ -144,7 +145,7 @@ fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &
 fn check_duality(packings: Vec<(cube::Cube, cube::Cube)>, brick: &Brick, comparator: &Comparator) {
     let dims = (0..N).collect::<Vec<_>>();
     let permutations = permutations(&dims, N);
-    for permutation in permutations.iter() {
+    for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
         let res = packings.iter().enumerate().map(|(i, &(_positions, sizes))| {
             if let Some(_) = apply_permutation(&sizes, &permutation, brick, comparator) {
@@ -164,21 +165,22 @@ fn apply_permutation(sizes: &cube::Cube, permutation: &[usize], brick: &Brick, c
     }
     let mut perm_sizes = [[[Point3D::ZERO; N]; N]; N];
     let mut perm_positions = [[[Point3D::ZERO; N]; N]; N];
-    let mut coords = [(0, 0, 0); N * N * N];
+    let mut coords = [[0; N]; N * N * N];
     for (i, coord) in coords.iter_mut().enumerate() {
-        coord.0 = (i / (N * N)) % N;
-        coord.1 = (i / N) % N;
-        coord.2 = i % N;
+        coord[0] = (i / (N * N)) % N;
+        coord[1] = (i / N) % N;
+        coord[2] = i % N;
     }
-    for &(x, y, z) in coords.iter() {
+    for coord in &coords {
+        let (x, y, z) = (coord[0], coord[1], coord[2]);
         let size = sizes[x][y][z];
         let mut perm_size = Point3D::ZERO;
         for i in 0..N {
             perm_size[i] = brick[permutation[map[&size[i]]]];
         }
         perm_sizes[x][y][z] = perm_size;
-        cube::position_brick(&mut perm_positions, &perm_sizes, (x, y, z));
-        if !cube::is_brick_valid(&perm_positions, &perm_sizes, (x, y, z), comparator) {
+        cube::position_brick(&mut perm_positions, &perm_sizes, &coord);
+        if !cube::is_brick_valid(&perm_positions, &perm_sizes, &coord, comparator) {
             return None;
         }
     }

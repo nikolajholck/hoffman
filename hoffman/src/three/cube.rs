@@ -51,8 +51,8 @@ pub fn symmetries(cube: &Cube) -> Vec<Cube> {
     let directions = [Direction::Positive, Direction::Negative];
     let direction_choices = combinations_with_repetition(&directions, N);
     let axis_permutations = permutations(&dims, N);
-    for axes in axis_permutations.iter() {
-        for directions in direction_choices.iter() {
+    for axes in &axis_permutations {
+        for directions in &direction_choices {
             let mut symmetry = [[[Point3D { x: 0, y: 0, z: 0 }; N]; N]; N];
             for x in 0..N {
                 for y in 0..N {
@@ -101,7 +101,7 @@ pub fn drain_symmetries(packings: &mut Vec<(Cube, Cube)>) {
     }
 }
 
-pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: [usize; N], comparator: &Comparator) -> bool {
+pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
     let this_intervals = Point3D::make_intervals(&positions[coord[0]][coord[1]][coord[2]], &sizes[coord[0]][coord[1]][coord[2]]);
     let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
     for &i in &directions {
@@ -176,40 +176,34 @@ pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: [usize; N], com
     false
 }
 
-pub fn position_brick(positions: &mut Cube, &sizes: &Cube, (x, y, z): (usize, usize, usize)) {
-    let x_pos = if x == 0 { 0 } else {
-        positions[x - 1][y][z].x + sizes[x - 1][y][z].x
-    };
-    let y_pos = if y == 0 { 0 } else {
-        positions[x][y - 1][z].y + sizes[x][y - 1][z].y
-    };
-    let z_pos = if z == 0 { 0 } else {
-        positions[x][y][z - 1].z + sizes[x][y][z - 1].z
-    };
-    positions[x][y][z] = Point3D { x: x_pos, y: y_pos, z: z_pos };
+pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &[usize; N]) {
+    let mut pos = Point3D::ZERO;
+    for (dim, &c) in coord.iter().enumerate() {
+        if c > 0 {
+            let mut index = coord.clone();
+            index[dim] -= 1;
+            pos[dim] = positions[index[0]][index[1]][index[2]][dim] + sizes[index[0]][index[1]][index[2]][dim]
+        }
+    }
+    positions[coord[0]][coord[1]][coord[2]] = pos;
 }
 
-pub fn is_brick_valid(positions: &Cube, sizes: &Cube, (x, y, z): (usize, usize, usize), comparator: &Comparator) -> bool {
-    let brick = sizes[x][y][z];
-    for i in 0..z {
-        if sizes[x][y][i].z == brick.z {
-            return false
+pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
+    let brick = sizes[coord[0]][coord[1]][coord[2]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][index[2]][dim] == brick[dim] {
+                return false
+            }
         }
     }
-    for i in 0..y {
-        if sizes[x][i][z].y == brick.y {
-            return false
-        }
-    }
-    for i in 0..x {
-        if sizes[i][y][z].x == brick.x {
-            return false
-        }
-    }
-    !does_intersect(&positions, &sizes, (x, y, z), &comparator)
+    !does_intersect(&positions, &sizes, &coord, &comparator)
 }
 
-pub fn does_intersect(positions: &Cube, sizes: &Cube, (x, y, z): (usize, usize, usize), comparator: &Comparator) -> bool {
+pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
+    let (x, y, z) = (coord[0], coord[1], coord[2]);
     let this_intervals = Point3D::make_intervals(&positions[x][y][z], &sizes[x][y][z]);
 
     let other_x_b = if x == 0 { 0 } else { x - 1 };
