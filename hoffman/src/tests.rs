@@ -44,6 +44,40 @@ fn point2d_make_intervals() {
 }
 
 #[test]
+fn product_test() {
+    let a = vec!(1, 2, 3, 4);
+    let b = vec!(76, 76, 0);
+    let c = vec!(0, 1);
+    assert!(product(&vec!(a.clone()).as_slice()).len() == 4);
+    assert!(product(&vec!(a.clone(), b.clone()).as_slice()).len() == 12);
+    assert!(product(&vec!(c.clone(), b.clone(), a.clone()).as_slice()).len() == 24);
+    assert!(product(&vec!(c.clone()).as_slice()).len() == 2);
+
+    let expected = vec!(vec!(0, 1), vec!(0, 2), vec!(0, 3), vec!(0, 4),
+                        vec!(1, 1), vec!(1, 2), vec!(1, 3), vec!(1, 4));
+    for (x, y) in product(&vec!(c.clone(), a.clone()).as_slice()).iter().zip(expected.iter()) {
+        assert_eq!(x, y);
+    }
+
+    let expected = vec!(vec!(0, 0), vec!(0, 1), vec!(1, 0), vec!(1, 1));
+    for (x, y) in product(&vec!(c.clone(), c.clone()).as_slice()).iter().zip(expected.iter()) {
+        assert_eq!(x, y);
+    }
+
+    let expected = vec!(vec!(0), vec!(1));
+    for (x, y) in product(&vec!(c.clone()).as_slice()).iter().zip(expected.iter()) {
+        assert_eq!(x, y);
+    }
+
+    let expected: Vec<Vec<usize>> = vec!(vec!());
+    let input: Vec<Vec<usize>> = vec!(vec!());
+
+    for (x, y) in product(&input.as_slice()).iter().zip(expected.iter()) {
+        assert_eq!(x, y);
+    }
+}
+
+#[test]
 fn permutations_test() {
     let a = [1, 2, 3, 4];
     let b = [76, 76, 0];

@@ -173,6 +173,22 @@ impl IndexMut<usize> for Point4D {
     }
 }
 
+pub fn product<T: Clone>(list: &[Vec<T>]) -> Vec<Vec<T>> {
+    if list.len() == 0 {
+        return vec!(vec!());
+    }
+    let mut prods: Vec<Vec<T>> = vec!();
+    let rest = product(&list[1..]);
+    for v in &list[0] {
+        for prod in &rest {
+            let mut new_prod = vec!(v.clone());
+            new_prod.extend(prod.clone());
+            prods.push(new_prod);
+        }
+    }
+    prods
+}
+
 pub fn permutations<T: Clone>(list: &[T], k: usize) -> Vec<Vec<T>> {
     let n = list.len();
     if k == 0 || k > n {
