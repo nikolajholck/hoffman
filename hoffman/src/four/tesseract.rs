@@ -3,6 +3,21 @@ use std::cmp::min;
 use super::*;
 
 pub type Tesseract = [[[[Point4D; N]; N]; N]; N];
+pub type Coord = [usize; N];
+pub type Shape = [usize; N];
+
+pub fn make_coords(shape: Shape) -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
+        (0..size).collect()
+    }).collect();
+    product(&axes).iter().map(|list| {
+        let mut coord = [0; N];
+        for i in 0..N {
+            coord[i] = list[i];
+        }
+        coord
+    }).collect()
+}
 
 pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name: &String) {
     let dim_labels = ["x", "y", "z", "w"];

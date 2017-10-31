@@ -3,6 +3,42 @@ use std::cmp::min;
 use super::*;
 
 pub type Cube = [[[Point3D; N]; N]; N];
+pub type Coord = [usize; N];
+
+pub fn make_coords() -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = (0..N).map(|_| {
+        (0..N).collect()
+    }).collect();
+    product(&axes).iter().map(|list| {
+        let mut coord = [0; N];
+        for i in 0..N {
+            coord[i] = list[i];
+        }
+        coord
+    }).collect()
+}
+
+pub fn export(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String) {
+    let coords = make_coords();
+    let mut bricks: Vec<export::Brick> = Vec::new();
+    for coord in coords.iter() {
+        let position = positions[coord[0]][coord[1]][coord[2]];
+        let size = sizes[coord[0]][coord[1]][coord[2]];
+        let brick = export::Brick {
+            coord: coord.to_vec(),
+            position: vec!(position[0], position[1], position[2]),
+            size: vec!(size[0], size[1], size[2]),
+        };
+        bricks.push(brick);
+    }
+    let export = export::Export {
+        name: Some(format!("{}", name)),
+        dimensions: N,
+        brick: brick.to_vec(),
+        bricks: bricks
+    };
+    export.save(&format!("cubes/{}", name));
+}
 
 pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String) {
     let dim_labels = ["x", "y", "z"];

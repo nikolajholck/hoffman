@@ -22,6 +22,7 @@ fn main() {
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("3D Packing {}", i);
         cube::plot(&positions, &sizes, &brick, &name);
+        cube::export(&positions, &sizes, &brick, &name);
     }
 
     check_duality(packings, &brick, &comparator);
@@ -47,12 +48,8 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
     }
     println!("Rotations: {:?}", rotations.len());
 
-    let mut coords = [[0; N]; N * N * N];
-    for (i, coord) in coords.iter_mut().enumerate() {
-        coord[0] = (i / (N * N)) % N;
-        coord[1] = (i / N) % N;
-        coord[2] = i % N;
-    }
+    let mut coords = cube::make_coords();
+
     println!("Coords: {:?}", coords.len());
 
     let mut packings = Vec::new();
@@ -165,12 +162,7 @@ fn apply_permutation(sizes: &cube::Cube, permutation: &[usize], brick: &Brick, c
     }
     let mut perm_sizes = [[[Point3D::ZERO; N]; N]; N];
     let mut perm_positions = [[[Point3D::ZERO; N]; N]; N];
-    let mut coords = [[0; N]; N * N * N];
-    for (i, coord) in coords.iter_mut().enumerate() {
-        coord[0] = (i / (N * N)) % N;
-        coord[1] = (i / N) % N;
-        coord[2] = i % N;
-    }
+    let coords = cube::make_coords();
     for coord in &coords {
         let (x, y, z) = (coord[0], coord[1], coord[2]);
         let size = sizes[x][y][z];

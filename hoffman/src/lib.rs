@@ -1,6 +1,7 @@
 pub mod three;
 pub mod four;
 pub mod plot;
+pub mod export;
 
 #[cfg(test)]
 mod tests;

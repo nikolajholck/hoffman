@@ -14,6 +14,8 @@ fn main() {
     println!("Will determine packings.");
     let now = Instant::now();
     let (positions, sizes) = backtrack(&brick, &comparator);
+    let name = format!("4D Packing final");
+    tesseract::plot(&positions, &sizes, &brick, &name);
     println!("Positions: {:?}", positions);
     println!("Sizes: {:?}", sizes);
 
@@ -38,13 +40,7 @@ fn backtrack(brick: &Brick, comparator: &Comparator) -> (tesseract::Tesseract, t
     }
     println!("Rotations: {:?}", rotations.len());
 
-    let mut coords = [[0; N]; N * N * N * N];
-    for (i, coord) in coords.iter_mut().enumerate() {
-        coord[0] = (i / (N * N * N)) % N;
-        coord[1] = (i / (N * N)) % N;
-        coord[2] = (i / N) % N;
-        coord[3] = i % N;
-    }
+    let coords = tesseract::make_coords();
     println!("Coords: {:?}", coords.len());
 
     let mut positions = [[[[Point4D::ZERO; N]; N]; N]; N];
