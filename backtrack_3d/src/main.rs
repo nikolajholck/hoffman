@@ -25,6 +25,7 @@ fn main() {
         cube::export(&positions, &sizes, &brick, &name);
     }
 
+    compute_distances(&packings);
     check_duality(&packings, &brick, &comparator);
 
     println!("Time spent making packings: {:?} s", now.elapsed().as_secs());
@@ -137,6 +138,28 @@ fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &
         let count = counts[i][coord[i]].entry(brick[i]).or_insert(0);
         *count += 1;
     }
+}
+
+fn compute_distances(packings: &Vec<(cube::Cube, cube::Cube)>) {
+    for (i, &(_, a)) in packings.iter().enumerate() {
+        print!("Packing {:2}: ", i);
+        let distances = packings.iter().enumerate().map(|(_, &(_, b))| compute_distance(&a, &b)).collect::<Vec<_>>();
+        let closest = packings.iter().enumerate().filter(|&(j, _)| i != j).map(|(_, &(_, b))| compute_distance(&a, &b)).min().unwrap();
+        for (k, d) in distances.iter().enumerate().filter(|&(_, &d)| d == closest) {
+            print!("({:2}, {:2}) ", k, d);
+        }
+        println!("Closest: {:2}", closest);
+
+    }
+}
+
+fn compute_distance(a: &cube::Cube, b: &cube::Cube) -> usize {
+    let coords = cube::make_coords();
+    cube::symmetries(&b).iter().map(|&sizes| {
+        coords.iter().filter(|&coord| {
+            a[coord[0]][coord[1]][coord[2]] != sizes[coord[0]][coord[1]][coord[2]]
+        }).count()
+    }).min().unwrap()
 }
 
 fn check_duality(packings: &Vec<(cube::Cube, cube::Cube)>, brick: &Brick, comparator: &Comparator) {
