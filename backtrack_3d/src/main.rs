@@ -25,7 +25,7 @@ fn main() {
         cube::export(&positions, &sizes, &brick, &name);
     }
 
-    check_duality(packings, &brick, &comparator);
+    check_duality(&packings, &brick, &comparator);
 
     println!("Time spent making packings: {:?} s", now.elapsed().as_secs());
 
@@ -139,13 +139,13 @@ fn increment_type_count(counts: &mut Vec<Vec<HashMap<IntType, usize>>>, brick: &
     }
 }
 
-fn check_duality(packings: Vec<(cube::Cube, cube::Cube)>, brick: &Brick, comparator: &Comparator) {
+fn check_duality(packings: &Vec<(cube::Cube, cube::Cube)>, brick: &Brick, comparator: &Comparator) {
     let dims = (0..N).collect::<Vec<_>>();
-    let permutations = permutations(&dims, N);
+    let permutations = vec!([2, 1, 0]);//permutations(&dims, N);
     for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
         let res = packings.iter().enumerate().map(|(i, &(_positions, sizes))| {
-            if let Some(_) = apply_permutation(&sizes, &permutation, brick, comparator) {
+            if let Some(_) = apply_permutation(&sizes, permutation, brick, comparator) {
                 format!("{}", i)
             } else {
                 format!("")
@@ -176,7 +176,5 @@ fn apply_permutation(sizes: &cube::Cube, permutation: &[usize], brick: &Brick, c
             return None;
         }
     }
-    let name = format!("3D Dual {:?}", permutation);
-    cube::plot(&perm_positions, &perm_sizes, &brick, &name);
     Some((perm_positions, perm_sizes))
 }
