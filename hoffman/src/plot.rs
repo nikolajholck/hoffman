@@ -75,7 +75,7 @@ impl Figure {
                 let y = (MARGIN + plot_size) * row as f64 + MARGIN;
                 let plot = &self.plots[row * self.columns + column];
                 let name = plot.name.clone().unwrap_or(String::from(""));
-                svg.push_str(&format!("<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-size=\"20\">{}</text>", x + plot_size * 0.5, y - 10.0, name));
+                svg.push_str(&format!("<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-size=\"16\">{}</text>", x + plot_size * 0.5, y - 10.0, name));
                 svg.push_str(&format!("<g transform=\"matrix({} 0 0 {} {} {})\">\n", plot_scale, plot_scale, x, y));
                 svg.push_str(&format!("<rect x=\"0\" y=\"0\" width=\"{}\" height=\"{}\" style=\"fill:none;stroke:#000;stroke-width:1;\" vector-effect=\"non-scaling-stroke\" />", brick_sum, brick_sum));
                 svg.push_str(&format!("{}\n", plot.to_svg(&colors)));
