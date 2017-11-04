@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Visualize 3D</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+      body {
+        font-family: Monospace;
+        background-color: #f0f0f0;
+        margin: 0px;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+
+    <script src="js/three.js"></script>
+
+    <script src="js/controls/DragControls.js"></script>
+    <script src="js/controls/TrackballControls.js"></script>
+
+    <script src="js/libs/stats.min.js"></script>
+    <script src="js/libs/dat.gui.min.js"></script>
+
+    <script>
+
+      var colors = [
+        new THREE.Color("rgb(236, 31, 38)"),  // Red
+        new THREE.Color("rgb(121, 193, 68)"), // Green
+        new THREE.Color("rgb(0, 125, 199)"),  // Blue
+        new THREE.Color("rgb(244, 112, 37)"), // Orange
+        new THREE.Color("rgb(252, 223, 7)"),  // Yellow
+        new THREE.Color("rgb(138, 40, 143)"), // Violet
+      ];
+
+      function combinations(list, k) {
+        var n = list.length;
+        if (k == 0 || k > n) {
+          return [[]];
+        }
+        if (k == n) {
+          return [list.slice()];
+        }
+        var combs = [];
+        for (li of combinations(list.slice(1), k - 1)) {
+          combs.push([list[0]].concat(li));
+        }
+        combs = combs.concat(combinations(list.slice(1), k));
+        return combs;
+      }
+
+      // Optional. Show the copy icon when dragging over. Seems to only work for chrome.
+      document.body.addEventListener('dragover', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
+
+      // Get file data on drop
+      document.body.addEventListener('drop', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var file = e.dataTransfer.files[0]; // Take first dropped file.
+
+        if (!file.type.match('application/json')) {
+          console.log('Not a JSON file');
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.onloadend = function(e) {
+          loadData(JSON.parse(this.result));
+          render();
+        };
+        reader.readAsText(file);
+      });
+
+      var container, stats;
+      var camera, controls, scene, renderer;
+      var shouldAnimate = false;
+
+      init();
+      loadData({ "name": "3D Packing 1", "dimensions": 3, "brick": [4, 5, 6], "bricks": [{ "coord": [0, 0, 0], "position": [0, 0, 0], "size": [4, 5, 6] },
+      { "coord": [0, 0, 1], "position": [0, 0, 6], "size": [4, 6, 5] },
+      { "coord": [0, 0, 2], "position": [0, 0, 11], "size": [6, 5, 4] },
+      { "coord": [0, 1, 0], "position": [0, 5, 0], "size": [4, 6, 5] },
+      { "coord": [0, 1, 1], "position": [0, 6, 5], "size": [5, 4, 6] },
+      { "coord": [0, 1, 2], "position": [0, 5, 11], "size": [5, 6, 4] },
+      { "coord": [0, 2, 0], "position": [0, 11, 0], "size": [5, 4, 6] },
+      { "coord": [0, 2, 1], "position": [0, 10, 6], "size": [6, 5, 4] },
+      { "coord": [0, 2, 2], "position": [0, 11, 10], "size": [6, 4, 5] },
+      { "coord": [1, 0, 0], "position": [4, 0, 0], "size": [5, 4, 6] },
+      { "coord": [1, 0, 1], "position": [4, 0, 6], "size": [6, 4, 5] },
+      { "coord": [1, 0, 2], "position": [6, 0, 11], "size": [5, 6, 4] },
+      { "coord": [1, 1, 0], "position": [4, 4, 0], "size": [5, 6, 4] },
+      { "coord": [1, 1, 1], "position": [5, 4, 4], "size": [4, 5, 6] },
+      { "coord": [1, 1, 2], "position": [5, 6, 10], "size": [6, 4, 5] },
+      { "coord": [1, 2, 0], "position": [5, 10, 0], "size": [6, 5, 4] },
+      { "coord": [1, 2, 1], "position": [6, 9, 4], "size": [4, 6, 5] },
+      { "coord": [1, 2, 2], "position": [6, 10, 9], "size": [4, 5, 6] },
+      { "coord": [2, 0, 0], "position": [9, 0, 0], "size": [6, 5, 4] },
+      { "coord": [2, 0, 1], "position": [10, 0, 4], "size": [5, 4, 6] },
+      { "coord": [2, 0, 2], "position": [11, 0, 10], "size": [4, 6, 5] },
+      { "coord": [2, 1, 0], "position": [9, 5, 0], "size": [6, 4, 5] },
+      { "coord": [2, 1, 1], "position": [9, 4, 5], "size": [6, 5, 4] },
+      { "coord": [2, 1, 2], "position": [11, 6, 9], "size": [4, 5, 6] },
+      { "coord": [2, 2, 0], "position": [11, 9, 0], "size": [4, 6, 5] },
+      { "coord": [2, 2, 1], "position": [10, 9, 5], "size": [5, 6, 4] },
+      { "coord": [2, 2, 2], "position": [10, 11, 9], "size": [5, 4, 6] }] });
+      render();
+
+      function init() {
+
+        container = document.createElement('div');
+        document.body.appendChild(container);
+
+        camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 10000);
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+/*        var dragControls = new THREE.DragControls( objects, camera, renderer.domElement );
+        dragControls.addEventListener( 'dragstart', function ( event ) { controls.enabled = false; } );
+        dragControls.addEventListener( 'dragend', function ( event ) { controls.enabled = true; } );*/
+        stats = new Stats();
+        container.appendChild(stats.dom);
+
+        controls = new THREE.TrackballControls(camera);
+        controls.rotateSpeed = 5.0;
+        controls.zoomSpeed = 5.0;
+        controls.dynamicDampingFactor = 1;
+
+        container.addEventListener('mousedown', () => {
+          console.log("down");
+          if (shouldAnimate === false) {
+            shouldAnimate = true;
+            animate();
+          }
+        });
+
+        container.addEventListener('wheel', () => { render(); });
+
+        container.addEventListener('mouseup', () => { shouldAnimate = false; });
+        container.addEventListener('mouseout', () => { shouldAnimate = false; });
+
+        window.addEventListener('resize', onWindowResize, false);
+
+      }
+
+      function loadData(data) {
+        if (data.dimensions != 3) {
+          alert('This is not a 3D visualization');
+          return;
+        }
+        while(scene.children.length > 0) {
+          scene.remove(scene.children[0]);
+        }
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+        var light = new THREE.SpotLight( 0xaaaaaa, 0.4 );
+        scene.add(light);
+
+        light.position.set(200, 200, 200);
+
+        var sideSum = data.brick.reduce((a, b) => a + b);
+        var combs = combinations(data.brick, 2);
+
+        var dist = 2 * sideSum;
+        camera.position.x = dist;
+        camera.position.y = dist;
+        camera.position.z = dist;
+
+        for (var i = 0; i < data.bricks.length; ++i) {
+          var p = data.bricks[i].position;
+          var s = data.bricks[i].size;
+          var position = { x: p[0], y: p[1], z: p[2] };
+          var size = { x: s[0], y: s[1], z: s[2] };
+          var offset = sideSum/2;
+
+          var geometry = new THREE.BoxGeometry( size.x, size.y, size.z );
+          var material = new THREE.MeshLambertMaterial( { color: 0xffffff, vertexColors: THREE.FaceColors, lights: true, skinning: true } );
+          var object = new THREE.Mesh( geometry, material);
+          var faces = combinations(s, 2);
+
+          for (var k = 0; k < 3; ++k ) {
+            // https://stackoverflow.com/questions/11252592/
+            var face = faces.reverse()[k];
+            var colorIndex = combs.findIndex(comb => face.every(v => comb.includes(v)))
+            geometry.faces[4 * k + 0].color = colors[colorIndex];
+            geometry.faces[4 * k + 1].color = colors[colorIndex];
+            geometry.faces[4 * k + 2].color = colors[colorIndex];
+            geometry.faces[4 * k + 3].color = colors[colorIndex];
+          }
+
+          object.position.x = position.x + size.x * 0.5 - offset;
+          object.position.y = position.y + size.y * 0.5 - offset;
+          object.position.z = position.z + size.z * 0.5 - offset;
+
+          object.castShadow = true;
+          object.receiveShadow = true;
+
+          // alternate method
+          var edges = new THREE.EdgesGeometry( geometry );
+          var line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
+          line.position.x = position.x + size.x * 0.5 - offset;
+          line.position.y = position.y + size.y * 0.5 - offset;
+          line.position.z = position.z + size.z * 0.5 - offset;
+
+          scene.add(line);
+          scene.add(object);
+        }
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        render();
+      }
+
+      function animate() {
+        if (shouldAnimate === true) {
+          requestAnimationFrame(animate);
+          render();
+          stats.update();
+        }
+      }
+
+      function render() {
+        controls.update();
+        renderer.render( scene, camera );
+      }
+
+    </script>
+
+  </body>
+</html>
