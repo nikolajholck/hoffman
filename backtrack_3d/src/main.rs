@@ -14,7 +14,7 @@ fn main() {
 
     println!("Will determine packings.");
     let now = Instant::now();
-    let mut packings = generate_cubes(&brick);
+    let mut packings = backtrack_cubes(&brick);
     println!("Total packings count: {:?}", packings.len());
     cube::drain_symmetries(&mut packings);
     println!("Total unique packings count: {:?}", packings.len());
@@ -93,7 +93,7 @@ impl Packing {
     }
 }
 
-fn generate_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
+fn backtrack_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
     let mut packings = [Packing::new(&brick)];
     let coords = cube::make_coords();
     println!("Coords: {:?}", coords.len());
@@ -136,7 +136,7 @@ fn generate_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
         } else { // We have tried all rotations at this coord.
             if i == 0 {
                 // There aren't any more possibilities.
-                println!("We have tried everything! :)");
+                println!("We have tried everything.");
                 break;
             }
             records[x][y][z] = 0; // Reset tries.
