@@ -3,7 +3,7 @@ extern crate hoffman;
 use hoffman::*;
 use hoffman::three::*;
 use std::time::Instant;
-//use std::collections::HashSet;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 fn main() {
@@ -49,9 +49,22 @@ fn generate_cubes(brick: &Brick, comparator: &Comparator) -> Vec<(cube::Cube, cu
     }
     println!("Rotations: {:?}", rotations.len());
 
-    let mut coords = cube::make_coords();
-
+    let coords = cube::make_coords();
     println!("Coords: {:?}", coords.len());
+
+    /*let coords = cube::make_coords().sort_unstable_by(|&a, &b| {
+        let a_max = a.iter().max();
+        let b_max = b.iter().max();
+        match a_max.cmp(&b_max) {
+            Ordering::Equal => {
+                let a_sum: usize = a.iter().sum();
+                let b_sum: usize = b.iter().sum();
+                return a_sum.cmp(&b_sum)
+            },
+            order => order
+        }
+    });
+    println!("Coords: {:?}", coords);*/
 
     let mut packings = Vec::new();
 
