@@ -137,7 +137,7 @@ pub fn drain_symmetries(packings: &mut Vec<(Cube, Cube)>) {
     }
 }
 
-pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
+pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
     let this_intervals = Point3D::make_intervals(&positions[coord[0]][coord[1]][coord[2]], &sizes[coord[0]][coord[1]][coord[2]]);
     let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
     for &i in &directions {
@@ -157,10 +157,8 @@ pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N], co
                 let other_size = sizes[other_coord[0]][other_coord[1]][other_coord[2]];
                 if other_size == Point3D::ZERO { continue }
                 let other_intervals = Point3D::make_intervals(&other_position, &other_size);
-                let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
-                let second = comparator.compare(foundation_intervals[i].end, other_intervals[i].end);
-                if (first == None || first == Some(Ordering::Greater))
-                && (second == None || second == Some(Ordering::Greater)) {
+                if foundation_intervals[dim].end > this_intervals[dim].end
+                && foundation_intervals[i].end > other_intervals[i].end {
                     return true
                 }
             }
@@ -196,13 +194,9 @@ pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N], co
                     let a_other_intervals = Point3D::make_intervals(&a_other_position, &a_other_size);
                     let b_other_intervals = Point3D::make_intervals(&b_other_position, &b_other_size);
 
-                    let first = comparator.compare(foundation_intervals[dim].end, this_intervals[dim].end);
-                    let second = comparator.compare(foundation_intervals[comb[0]].end, a_other_intervals[comb[0]].end);
-                    let third = comparator.compare(foundation_intervals[comb[1]].end, b_other_intervals[comb[1]].end);
-
-                    if (first == None || first == Some(Ordering::Greater))
-                    && (second == None || second == Some(Ordering::Greater))
-                    && (third == None || third == Some(Ordering::Greater)) {
+                    if foundation_intervals[dim].end > this_intervals[dim].end
+                    && foundation_intervals[comb[0]].end > a_other_intervals[comb[0]].end
+                    && foundation_intervals[comb[1]].end > b_other_intervals[comb[1]].end {
                         return true
                     }
                 }
@@ -224,7 +218,7 @@ pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &[usize; N]) {
     positions[coord[0]][coord[1]][coord[2]] = pos;
 }
 
-pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
+pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
     let brick = sizes[coord[0]][coord[1]][coord[2]];
     for (dim, &c) in coord.iter().enumerate() {
         let mut index = coord.clone();
@@ -235,10 +229,10 @@ pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N], compar
             }
         }
     }
-    !does_intersect(&positions, &sizes, &coord, &comparator)
+    !does_intersect(&positions, &sizes, &coord)
 }
 
-pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N], comparator: &Comparator) -> bool {
+pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
     let (x, y, z) = (coord[0], coord[1], coord[2]);
     let this_intervals = Point3D::make_intervals(&positions[x][y][z], &sizes[x][y][z]);
 
@@ -254,7 +248,7 @@ pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N], compar
             for other_z in other_z_b..other_z_e {
                 if other_x == x && other_y == y && other_z == z { continue } // Skip itself.
                 let other_intervals = Point3D::make_intervals(&positions[other_x][other_y][other_z], &sizes[other_x][other_y][other_z]);
-                if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| comparator.intervals_intersect(&a, &b)) {
+                if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| a.intersects(&b)) {
                     return true
                 }
             }

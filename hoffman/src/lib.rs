@@ -8,6 +8,7 @@ mod tests;
 
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use std::collections::HashSet;
 
 pub type IntType = i32;
 
@@ -30,6 +31,15 @@ impl Interval {
 
     pub fn is_zero(&self) -> bool {
         self.begin == 0 && self.end == 0
+    }
+
+    pub fn intersects(&self, other: &Interval) -> bool {
+        if self.is_zero() || other.is_zero() { return false }
+        if self.begin < other.begin {
+            other.begin < self.end
+        } else {
+            self.begin < other.end
+        }
     }
 }
 
@@ -172,6 +182,16 @@ impl IndexMut<usize> for Point4D {
             _ => panic!("Point4D index out of bounds.")
         }
     }
+}
+
+pub fn list_has_unique_sums(list: &[IntType]) -> bool {
+    let mut tuples: Vec<Vec<IntType>> = Vec::new();
+    for i in 0..list.len() + 1 {
+        tuples.extend(combinations(list, i));
+    }
+    let tuple_sums: Vec<IntType> = tuples.iter().map(|a| a.iter().sum()).collect();
+    let unique_sums: HashSet<IntType> = tuple_sums.iter().cloned().collect();
+    tuple_sums.len() == unique_sums.len()
 }
 
 pub fn product<T: Clone>(list: &[Vec<T>]) -> Vec<Vec<T>> {
