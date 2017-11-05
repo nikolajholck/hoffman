@@ -6,20 +6,7 @@ use hoffman::four::*;
 use std::time::Instant;
 use std::collections::HashMap;
 
-fn make_coords(shape: Shape) -> Vec<Coord> {
-    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
-        (0..size).collect()
-    }).collect();
-    product(&axes).iter().map(|list| {
-        let mut coord = [0; N];
-        for i in 0..N {
-            coord[i] = list[i];
-        }
-        coord
-    }).collect()
-}
-
-fn projection(coord: &Coord, projection: &[usize]) -> [usize; 2] {
+fn projection(coord: &tesseract::Coord, projection: &[usize]) -> [usize; 2] {
     assert!(coord.len() >= projection.len(), "illegal projection");
     let mut result = [0; 2];
     for i in 0..2 {
@@ -37,19 +24,16 @@ fn permute_at<T: Copy>(coord: &[T; N], permutation: &[usize], locations: &[usize
     result
 }
 
-type Coord = [usize; N];
-type Shape = [usize; N];
-
 #[derive(Clone)]
 enum Container {
     One(Brick),
-    Many(HashMap<Coord, Group>)
+    Many(HashMap<tesseract::Coord, Group>)
 }
 
 #[derive(Clone)]
 struct Group {
     contents: Container,
-    shape: Shape
+    shape: tesseract::Shape
 }
 
 impl Group {
@@ -61,7 +45,7 @@ impl Group {
                 shape: self.shape
             },
             Container::Many(groups) => {
-                let mut new_groups: HashMap<Coord, Group> = HashMap::new();
+                let mut new_groups: HashMap<tesseract::Coord, Group> = HashMap::new();
                 for (coord, group) in groups.into_iter() {
                     let new_group = group.permute(&dimensions, &permutation, rotate);
                     let new_coord = if rotate { permute_at(&coord, &permutation, &dimensions) } else { coord };
@@ -77,7 +61,7 @@ impl Group {
 
     fn solve(self, solution: &HashMap<[usize; 2], [usize; 2]>, dimensions: &[usize], rotate: bool) -> Group {
         if let Container::Many(groups) = self.contents {
-            let mut new_groups: HashMap<Coord, Group> = HashMap::new();
+            let mut new_groups: HashMap<tesseract::Coord, Group> = HashMap::new();
             for (coord, group) in groups.into_iter() {
                 let solution_coord = projection(&coord, dimensions);
                 let permutation = solution[&solution_coord];
@@ -93,7 +77,7 @@ impl Group {
         }
     }
 
-    fn get_brick(&self, coord: &Coord, brick_counts: &Shape) -> Point4D {
+    fn get_brick(&self, coord: &tesseract::Coord, brick_counts: &tesseract::Shape) -> Point4D {
         match self.contents {
             Container::One(brick) => Point4D { x: brick[0], y: brick[1], z: brick[2], w: brick[3] },
             Container::Many(ref groups) => {
@@ -117,9 +101,9 @@ impl Group {
         }
     }
 
-    fn many(contents: Vec<Group>, shape: Shape) -> Group {
-        let mut new_contents: HashMap<Coord, Group> = HashMap::new();
-        for (&coord, group) in make_coords(shape).iter().zip(contents.into_iter()) {
+    fn many(contents: Vec<Group>, shape: tesseract::Shape) -> Group {
+        let mut new_contents: HashMap<tesseract::Coord, Group> = HashMap::new();
+        for (&coord, group) in tesseract::make_coords(shape).iter().zip(contents.into_iter()) {
             new_contents.insert(coord, group);
         }
         Group {
@@ -135,7 +119,7 @@ fn main() {
 
     // let brick = [53, 54, 57, 59]; // 10 (wide)
     let brick = [57, 59, 62, 63]; // 10 (narrow)
-    //let brick = [1, 2, 4, 7]; // testing
+    // let brick = [1, 2, 4, 9]; // testing
 
     let solution2d_one: HashMap<[usize; 2], [usize; 2]> =
     [([0, 0], [0, 1]),
@@ -176,7 +160,12 @@ fn main() {
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("4D Combined Packing {:?}", i);
         tesseract::plot(&positions, &sizes, &brick, &name);
+        export_cubes(&positions, &sizes, &brick, &name);
     }
+    println!("Total number of permuted packings: {:?}", packings.len());
+
+    make_statistics(&packings, &brick, &comparator);
+    check_duality(&packings, &brick, &comparator);
 
     println!("Time spent making packing: {:?} s", now.elapsed().as_secs());
 
@@ -192,7 +181,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
     let mut groups: Vec<Group> = (0..group_count).map(|_| Group::one(brick.clone())).collect();
 
     for column in 0..a { // Solve columns
-        println!("Container count at column {} is {}", column, groups.len());
+        //println!("Container count at column {} is {}", column, groups.len());
         let selected_dimensions: Vec<usize> = (0..b).map(|k| column + k * b).collect();
         let mut shape = [1; N];
         for &dim in &selected_dimensions {
@@ -208,10 +197,10 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
         groups = new_groups;
     }
 
-    println!("Box count after solving columns: {}", groups.len());
+    //println!("Box count after solving columns: {}", groups.len());
 
     for row in 0..b { // Solve rows
-        println!("Box count at row {} is, {}", row, groups.len());
+        //println!("Box count at row {} is, {}", row, groups.len());
 
         let selected_dimensions: Vec<usize> = (0..a).map(|k| row * b + k).collect();
 
@@ -229,25 +218,141 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
         groups = new_groups;
     }
 
-    println!("Box count in the end: {}", groups.len());
+    //println!("Box count in the end: {}", groups.len());
     assert!(groups.len() == 1, "algorithm didn't result in packing.");
     groups.pop().unwrap()
 }
 
 fn convert_to_packing(group: &Group, comparator: &Comparator) -> (tesseract::Tesseract, tesseract::Tesseract) {
-    let coords = make_coords([N, N, N, N]);
-    println!("Coords: {:?}", coords.len());
+    let coords = tesseract::make_coords([N; N]);
 
     let mut sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
     let mut positions = [[[[Point4D::ZERO; N]; N]; N]; N];
 
     for coord in coords.iter() {
         let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
-        sizes[x][y][z][w] = group.get_brick(&coord, &[N, N, N, N]);
+        sizes[x][y][z][w] = group.get_brick(&coord, &[N; N]);
         tesseract::position_brick(&mut positions, &sizes, &coord);
-        if !tesseract::is_brick_valid(&positions, &sizes, &coord, &comparator) {
-            println!("Error: Something is wrong with the packing at {:?}", coord);
-        }
+    }
+    for coord in coords.iter() {
+        assert!(tesseract::is_brick_valid(&positions, &sizes, &coord, &comparator), "Error: Something is wrong with the packing at {:?}", coord);
     }
     (positions, sizes)
+}
+
+pub fn export_cubes(positions: &tesseract::Tesseract, sizes: &tesseract::Tesseract, brick: &[IntType; N], name: &String) {
+    for dim in 0..4 {
+        let mut bricks: Vec<export::Brick> = Vec::new();
+        let other_dims = list_except(&(0..4).collect::<Vec<_>>(), &[dim]);
+        for a in 0..4 {
+            for b in 0..4 {
+                for c in 0..4 {
+                    for level in 0..1 {
+                        let mut coord = vec!(a, b, c);
+                        coord.insert(dim, level);
+                        let position = positions[coord[0]][coord[1]][coord[2]][coord[3]];
+                        let size = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
+                        let brick = export::Brick {
+                            coord: vec!(a, b, c),
+                            position: vec!(position[other_dims[0]], position[other_dims[1]], position[other_dims[2]]),
+                            size: vec!(size[other_dims[0]], size[other_dims[1]], size[other_dims[2]]),
+                        };
+                        bricks.push(brick);
+                    }
+                }
+            }
+        }
+        let name = format!("{} dim-{}", name, dim);
+        let export = export::Export {
+            name: Some(format!("{}", name)),
+            dimensions: 3,
+            brick: brick.to_vec(),
+            bricks: bricks
+        };
+        export.save(&format!("cubes/{}", name));
+    }
+}
+
+fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick, comparator: &Comparator) {
+    let dims = (0..N).collect::<Vec<_>>();
+    let permutations = permutations(&dims, N);
+    for permutation in &permutations {
+        println!("Checking for dual using permutation {:?}:", permutation);
+        let res: usize = packings.iter().enumerate().map(|(_i, &(_positions, sizes))| {
+            match apply_permutation(&sizes, &permutation, brick, comparator) {
+                Some(_) => 1,
+                None    => 0
+            }
+        }).sum();
+        println!("Okay count: {}", res);
+    }
+}
+
+fn apply_permutation(sizes: &tesseract::Tesseract, permutation: &[usize], brick: &Brick, comparator: &Comparator) -> Option<(tesseract::Tesseract, tesseract::Tesseract)> {
+    let mut map = HashMap::new();
+    for (i, v) in brick.iter().enumerate() {
+        map.insert(v, i);
+    }
+    let mut perm_sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
+    let mut perm_positions = [[[[Point4D::ZERO; N]; N]; N]; N];
+    let coords = tesseract::make_coords([N; N]);
+    for coord in &coords {
+        let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
+        let size = sizes[x][y][z][w];
+        let mut perm_size = Point4D::ZERO;
+        for i in 0..N {
+            perm_size[i] = brick[permutation[map[&size[i]]]];
+        }
+        perm_sizes[x][y][z][w] = perm_size;
+        tesseract::position_brick(&mut perm_positions, &perm_sizes, &coord);
+        if !tesseract::is_brick_valid(&perm_positions, &perm_sizes, &coord, comparator) {
+            return None;
+        }
+    }
+    Some((perm_positions, perm_sizes))
+}
+
+fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick, _comparator: &Comparator) {
+    let dims = (0..N).collect::<Vec<_>>();
+    for &(_positions, sizes) in packings.iter() {
+        for dim in 0..N {
+            for level in 0..N {
+                let mut template_coord = [0; N];
+                template_coord[dim] = level;
+                let other_dims = list_except(&dims, &[dim]);
+                let mut axes: Vec<Vec<usize>> = [N; N-1].iter().map(|&size| {
+                    (0..size).collect()
+                }).collect();
+                axes.insert(dim, vec!(level));
+                let coords = product(&axes);
+                let mut type_map = HashMap::with_capacity(N);
+                let mut orientations_map: HashMap<IntType, HashMap<usize, usize>> = HashMap::with_capacity(N);
+                for coord in &coords {
+                    let size = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
+                    let type_key = size[dim];
+                    let count = type_map.entry(type_key).or_insert(0);
+                    *count += 1;
+
+                    let mut orientation_map = orientations_map.entry(type_key).or_insert(HashMap::new());
+                    let orientation = [size[other_dims[0]], size[other_dims[1]], size[other_dims[2]]];
+                    let orientations = permutations(&list_except(brick, &[type_key]), N-1);
+                    let mut idx: Option<_> = None;
+                    for (i, ori) in orientations.iter().enumerate() {
+                        if ori[..N-1].iter().zip(orientation.iter()).all(|(a, b)| a == b) {
+                            idx = Some(i);
+                            break;
+                        }
+                    }
+                    let idx = idx.expect(&format!("Could not find perm type {:?}, {:?}, {:?}", orientation, &list_except(brick, &[type_key]), orientations));
+                    let orientation_count = orientation_map.entry(idx).or_insert(0);
+                    *orientation_count += 1;
+                }
+                println!("Orientation map: {:?}", orientations_map.iter().map(|(_, map)| {
+                    map.iter().map(|(_, &c)| c).collect::<Vec<usize>>()
+                }).collect::<Vec<Vec<usize>>>());
+                println!("Orientation map: {:?}", orientations_map);
+            }
+        }
+        break
+    }
 }
