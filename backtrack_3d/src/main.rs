@@ -7,26 +7,28 @@ use std::collections::HashMap;
 use std::iter::repeat;
 
 fn main() {
-    let brick: Brick = [4, 5, 6];
-    println!("Brick: {:?}", brick);
+    let bricks = [
+        [4, 5, 6]
+    ];
+    println!("Bricks: {:?}", bricks);
 
-    assert!(list_has_unique_sums(&brick), "Brick doesn't have unique sums.");
+    assert!(bricks.iter().all(|&brick| list_has_unique_sums(&brick)), "Brick doesn't have unique sums.");
 
     println!("Will determine packings.");
     let now = Instant::now();
-    let mut packings = backtrack_cubes(&brick);
+    let mut packings = backtrack_cubes(&bricks);
     println!("Total packings count: {:?}", packings.len());
     cube::drain_symmetries(&mut packings);
     println!("Total unique packings count: {:?}", packings.len());
 
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("3D Packing {}", i);
-        cube::plot(&positions, &sizes, &brick, &name);
-        cube::export(&positions, &sizes, &brick, &name);
+        cube::plot(&positions, &sizes, &bricks[0], &name);
+        cube::export(&positions, &sizes, &bricks[0], &name);
     }
 
     compute_distances(&packings);
-    check_duality(&packings, &brick);
+    check_duality(&packings, &bricks[0]);
 
     println!("Time spent making packings: {:?} s", now.elapsed().as_secs());
 }
@@ -74,18 +76,18 @@ impl Packing {
         && !cube::makes_sharp_corner(&self.positions, &self.sizes, &coord)
     }
 
-    fn validate_type_count(&self, coord: &[usize; N]) -> bool {
+    fn validate_type_count(&self, coord: &cube::Coord) -> bool {
         coord.iter().enumerate().all(|(i, &v)| self.type_counts[i][v].values().max().unwrap() <= &N)
     }
 
-    fn decrement_type_count(&mut self, brick: &Point3D, coord: &[usize; N]) {
+    fn decrement_type_count(&mut self, brick: &Point3D, coord: &cube::Coord) {
         for i in 0..N {
             let count = self.type_counts[i][coord[i]].entry(brick[i]).or_insert(0);
             *count -= 1;
         }
     }
 
-    fn increment_type_count(&mut self, brick: &Point3D, coord: &[usize; N]) {
+    fn increment_type_count(&mut self, brick: &Point3D, coord: &cube::Coord) {
         for i in 0..N {
             let count = self.type_counts[i][coord[i]].entry(brick[i]).or_insert(0);
             *count += 1;
@@ -93,16 +95,18 @@ impl Packing {
     }
 }
 
-fn backtrack_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
-    let mut packings = [Packing::new(&brick)];
+fn backtrack_cubes(bricks: &[Brick]) -> Vec<(cube::Cube, cube::Cube)> {
+    let mut packings: Vec<Packing> = bricks.iter().map(|brick| Packing::new(brick)).collect();
     let coords = cube::make_coords();
     println!("Coords: {:?}", coords.len());
-    let mut solutions = Vec::new();
+    let mut cubes = Vec::new();
 
     let mut records = [[[0; N]; N]; N];
     let mut i: usize = 0;
     let mut iteration: usize = 0;
     let mut successes: usize = 0;
+
+    let max_tries = N * (N - 1) * (N - 2);
 
     loop {
         iteration += 1;
@@ -112,7 +116,6 @@ fn backtrack_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
 
         let coord = coords[i];
         let (x, y, z) = (coord[0], coord[1], coord[2]);
-        let max_tries = N * (N - 1) * (N - 2);
 
         if records[x][y][z] < max_tries { // We'll try placing a brick.
             for packing in &mut packings {
@@ -122,7 +125,7 @@ fn backtrack_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
 
             if packings.iter().all(|packing| packing.is_valid(&coord)) {
                 if i == N * N * N - 1 { // We have successfully placed all bricks.
-                    solutions.push((packings[0].positions, packings[0].sizes));
+                    cubes.push((packings[0].positions, packings[0].sizes));
                     if successes == 0 {
                         println!("Iterations: {:?}", iteration);
                         println!("Records: {:?}", records);
@@ -147,7 +150,7 @@ fn backtrack_cubes(brick: &Brick) -> Vec<(cube::Cube, cube::Cube)> {
         }
     }
     println!("Total iterations {:?}", iteration);
-    solutions
+    cubes
 }
 
 fn compute_distances(packings: &Vec<(cube::Cube, cube::Cube)>) {

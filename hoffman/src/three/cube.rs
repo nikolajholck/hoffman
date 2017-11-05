@@ -51,18 +51,18 @@ pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String)
                 for j in 0..N {
                     let mut index = vec!(i, j);
                     index.insert(dim, level);
-                    let plane_dims = list_except(&dims, &[dim]);
+                    let square_dims = list_except(&dims, &[dim]);
                     let position = positions[index[0]][index[1]][index[2]];
                     let size = sizes[index[0]][index[1]][index[2]];
                     let rectangle = plot::Rectangle {
-                        x: position[plane_dims[0]], y: position[plane_dims[1]],
-                        width: size[plane_dims[0]], height: size[plane_dims[1]]
+                        x: position[square_dims[0]], y: position[square_dims[1]],
+                        width: size[square_dims[0]], height: size[square_dims[1]]
                     };
                     rects.push(rectangle);
                 }
             }
-            let plane_name = list_except(&dim_labels, &[dim_labels[dim]]).join("");
-            let plot_name = format!("{}-plane at {}={}", plane_name, dim_labels[dim], level);
+            let square_name = list_except(&dim_labels, &[dim_labels[dim]]).join("");
+            let plot_name = format!("{}-square at {}={}", square_name, dim_labels[dim], level);
 
             let plot = plot::Plot {
                 name: Some(plot_name),
