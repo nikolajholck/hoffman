@@ -3,31 +3,47 @@ use std::cmp::min;
 use super::*;
 
 pub type Cube = [[[Point3D; N]; N]; N];
+pub const M: usize = 3;
+pub type Coord = [usize; M];
+pub type Shape = [usize; M];
 pub type Kernel = [[[Point3D; KERNEL_DIM]; KERNEL_DIM]; KERNEL_DIM];
+
+pub fn make_coords(shape: Shape) -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
+        (0..size).collect()
+    }).collect();
+    product(&axes).iter().map(|list| {
+        let mut coord = [0; M];
+        for i in 0..M {
+            coord[i] = list[i];
+        }
+        coord
+    }).collect()
+}
 
 pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String) {
     let dim_labels = ["x", "y", "z"];
-    let dims = (0..3).collect::<Vec<usize>>();
+    let dims = (0..M).collect::<Vec<usize>>();
     let mut plots = Vec::new();
-    for dim in 0..3 {
+    for dim in 0..M {
         for level in 0..N {
             let mut rects = Vec::new();
             for i in 0..N {
                 for j in 0..N {
                     let mut index = vec!(i, j);
                     index.insert(dim, level);
-                    let plane_dims = list_except(&dims, &[dim]);
+                    let square_dims = list_except(&dims, &[dim]);
                     let position = positions[index[0]][index[1]][index[2]];
                     let size = sizes[index[0]][index[1]][index[2]];
                     let rectangle = plot::Rectangle {
-                        x: position[plane_dims[0]], y: position[plane_dims[1]],
-                        width: size[plane_dims[0]], height: size[plane_dims[1]]
+                        x: position[square_dims[0]], y: position[square_dims[1]],
+                        width: size[square_dims[0]], height: size[square_dims[1]]
                     };
                     rects.push(rectangle);
                 }
             }
-            let plane_name = list_except(&dim_labels, &[dim_labels[dim]]).join("");
-            let plot_name = format!("{}-square at {}={}", plane_name, dim_labels[dim], level);
+            let square_name = list_except(&dim_labels, &[dim_labels[dim]]).join("");
+            let plot_name = format!("{}-square at {}={}", square_name, dim_labels[dim], level);
 
             let plot = plot::Plot {
                 name: Some(plot_name),
@@ -82,166 +98,48 @@ pub fn symmetries(cube: &Cube) -> Vec<Cube> {
     symmetries
 }
 
-/*pub fn kernel_drain_symmetries(kernels: &mut Vec<Kernel>) {
-    let mut i: usize = 0;
-    while i < kernels.len() {
-        let kernel = kernels[i];
-        let symmetries = kernel_symmetries(&kernel);
-        let mut deleted_count: usize = 0;
-        for j in (i + 1..kernels.len()).rev() { // Check subsequent packings
-            let suspect_kernel = kernels[j];
-            if symmetries.contains(&suspect_kernel) {
-                kernels.remove(j); // Remove duplicate.
-                deleted_count += 1;
+pub fn kernel_is_brick_valid(sizes: &Kernel, coord: &Coord) -> bool {
+    let brick = sizes[coord[0]][coord[1]][coord[2]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][index[2]][dim] == brick[dim] {
+                return false
             }
-        }
-        if deleted_count != 7 {
-            //println!("Special kernel (deleted: {:?})", deleted_count);
-        }
-        i += 1;
-    }
-}
-
-pub fn kernel_symmetries(kernel: &Kernel) -> [Kernel; 8] {
-    let kernel_clone = kernel_clone(kernel);
-    let kernel_flipped = kernel_flip(kernel);
-    [
-        kernel_clone,
-        kernel_rotate(&kernel),
-        kernel_rotate(&kernel_rotate(&kernel)),
-        kernel_rotate(&kernel_rotate(&kernel_rotate(&kernel))),
-        kernel_flipped,
-        kernel_rotate(&kernel_flipped),
-        kernel_rotate(&kernel_rotate(&kernel_flipped)),
-        kernel_rotate(&kernel_rotate(&kernel_rotate(&kernel_flipped)))
-    ]
-}
-
-pub fn kernel_has_symmetries(kernel: &Kernel) -> bool {
-    kernel_symmetries(kernel)[1..].contains(kernel)
-}
-
-pub fn kernel_clone(kernel: &Kernel) -> Kernel {
-    let mut cloned_kernel = [[Point2D { x: 0, y: 0 }; KERNEL_DIM]; KERNEL_DIM];
-    for x in 0..KERNEL_DIM {
-        for y in 0..KERNEL_DIM {
-            cloned_kernel[x][y] = kernel[x][y];
-        }
-    }
-    cloned_kernel
-}
-
-pub fn kernel_flip(kernel: &Kernel) -> Kernel {
-    let mut flipped_kernel = [[Point2D { x: 0, y: 0 }; KERNEL_DIM]; KERNEL_DIM];
-    for x in 0..KERNEL_DIM {
-        for y in 0..KERNEL_DIM {
-            flipped_kernel[x][y] = kernel[y][x].flip();
-        }
-    }
-    flipped_kernel
-}
-
-pub fn kernel_rotate(kernel: &Kernel) -> Kernel {
-    let mut rotated_kernel = [[Point2D { x: 0, y: 0 }; KERNEL_DIM]; KERNEL_DIM];
-    for x in 0..KERNEL_DIM {
-        for y in 0..KERNEL_DIM {
-            rotated_kernel[x][y] = kernel[y][KERNEL_DIM - 1 - x].rotate();
-        }
-    }
-    rotated_kernel
-}*/
-
-pub fn kernel_is_brick_valid(sizes: &Kernel, (x, y, z): (usize, usize, usize)) -> bool {
-    let brick = sizes[x][y][z];
-    for i in 0..z {
-        if sizes[x][y][i].z == brick.z {
-            return false
-        }
-    }
-    for i in 0..y {
-        if sizes[x][i][z].y == brick.y {
-            return false
-        }
-    }
-    for i in 0..x {
-        if sizes[i][y][z].x == brick.x {
-            return false
         }
     }
     true
 }
 
-/*pub fn drain_symmetries(planes: &mut Vec<Plane>) {
-    let mut i: usize = 0;
-    while i < planes.len() {
-        let plane = planes[i];
-        let symmetries = symmetries(&plane);
-        let mut deleted_count: usize = 0;
-        for j in (i + 1..planes.len()).rev() { // Check subsequent packings
-            let suspect_plane = planes[j];
-            if symmetries.contains(&suspect_plane) {
-                planes.remove(j); // Remove duplicate.
-                deleted_count += 1;
+pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &Coord) {
+    let mut pos = Point3D::ZERO;
+    for (dim, &c) in coord.iter().enumerate() {
+        if c > 0 {
+            let mut index = coord.clone();
+            index[dim] -= 1;
+            pos[dim] = positions[index[0]][index[1]][index[2]][dim] + sizes[index[0]][index[1]][index[2]][dim]
+        }
+    }
+    positions[coord[0]][coord[1]][coord[2]] = pos;
+}
+
+pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
+    let brick = sizes[coord[0]][coord[1]][coord[2]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][index[2]][dim] == brick[dim] {
+                return false
             }
         }
-        if deleted_count != 7 {
-            //println!("Special plane (deleted: {:?})", deleted_count);
-        }
-        i += 1;
     }
+    !does_intersect(&positions, &sizes, &coord)
 }
 
-pub fn symmetries(plane: &Plane) -> [Plane; 8] {
-    let clone = clone(plane);
-    let flipped = flip(plane);
-    [
-        clone,
-        rotate(&plane),
-        rotate(&rotate(&plane)),
-        rotate(&rotate(&rotate(&plane))),
-        flipped,
-        rotate(&flipped),
-        rotate(&rotate(&flipped)),
-        rotate(&rotate(&rotate(&flipped)))
-    ]
-}
-
-}*/
-
-pub fn position_brick(positions: &mut Cube, &sizes: &Cube, (x, y, z): (usize, usize, usize)) {
-    let x_pos = if x == 0 { 0 } else {
-        positions[x - 1][y][z].x + sizes[x - 1][y][z].x
-    };
-    let y_pos = if y == 0 { 0 } else {
-        positions[x][y - 1][z].y + sizes[x][y - 1][z].y
-    };
-    let z_pos = if z == 0 { 0 } else {
-        positions[x][y][z - 1].z + sizes[x][y][z - 1].z
-    };
-    positions[x][y][z] = Point3D { x: x_pos, y: y_pos, z: z_pos };
-}
-
-pub fn is_brick_valid(positions: &Cube, sizes: &Cube, (x, y, z): (usize, usize, usize), comparator: &Comparator) -> bool {
-    let brick = sizes[x][y][z];
-    for i in 0..N {
-        if i != z && sizes[x][y][i].z == brick.z {
-            return false
-        }
-    }
-    for i in 0..N {
-        if i != y && sizes[x][i][z].y == brick.y {
-            return false
-        }
-    }
-    for i in 0..N {
-        if i != x && sizes[i][y][z].x == brick.x {
-            return false
-        }
-    }
-    !does_intersect(&positions, &sizes, (x, y, z), &comparator)
-}
-
-pub fn does_intersect(positions: &Cube, sizes: &Cube, (x, y, z): (usize, usize, usize), comparator: &Comparator) -> bool {
+pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
+    let (x, y, z) = (coord[0], coord[1], coord[2]);
     let this_intervals = Point3D::make_intervals(&positions[x][y][z], &sizes[x][y][z]);
 
     let other_x_b = if x == 0 { 0 } else { x - 1 };
@@ -258,7 +156,7 @@ pub fn does_intersect(positions: &Cube, sizes: &Cube, (x, y, z): (usize, usize, 
                 let empty = Point3D { x: 0, y: 0, z: 0};
                 if positions[other_x][other_y][other_z] == empty { continue } // Skip empty.
                 let other_intervals = Point3D::make_intervals(&positions[other_x][other_y][other_z], &sizes[other_x][other_y][other_z]);
-                if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| comparator.intervals_intersect(&a, &b)) {
+                if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| a.intersects(&b)) {
                     return true
                 }
             }

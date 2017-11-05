@@ -2,36 +2,33 @@ extern crate hoffman;
 
 use hoffman::*;
 use hoffman::four::*;
+use std::collections::HashMap;
 use std::time::Instant;
 
 fn main() {
-    /* Narrow: 8003461 Squares */
-    let brick = [57, 59, 62, 63];
-    /**/
+    /* Narrow:    7807933 Squares
+       Wide:      7807933 Squares
+       Universal: 6406310 Squares */
 
-    /* Wide: 8003461 Squares
-    const BRICK: [IntType; N] = [53, 54, 57, 59];
-    const SIDESUM: IntType = 53 + 54 + 57 + 59;
-    */
+    let bricks = [
+        [57, 59, 62, 63], // Narrow
+        [53, 54, 57, 59]  // Wide
+    ];
 
-    /* Balanced: 9929841 Squares
-    const BRICK: [IntType; N] = [1, 2, 3, 4];
-    const SIDESUM: IntType = 1 + 2 + 3 + 4;
-    */
-    println!("Brick: {:?}", brick);
+    println!("Bricks: {:?}", bricks);
 
-    let comparator = Comparator::constructor(&brick);
+    assert!(bricks.iter().all(|&brick| list_has_unique_sums(&brick)), "Brick doesn't have unique sums.");
 
     println!("Will determine kernels.");
     let now = Instant::now();
-    let unique_kernels = generate_two_by_two_kernels(&brick);
+    let unique_kernels = backtrack_kernels(&bricks[0]);
     println!("Unique kernel count: {:?}", unique_kernels.len());
     println!("Time spent making kernels: {:?} s", now.elapsed().as_secs());
 
     for (i, kernel) in unique_kernels.iter().filter(|k| square::kernel_is_self_symmetric(k)).enumerate() {
         let sub_group_index = square::kernel_symmetries(kernel).iter().filter(|&s| s == kernel).count();
         let name = format!("{} self symmetries, kernel {}", sub_group_index, i);
-        square::kernel_plot(kernel, &brick, &name);
+        square::kernel_plot(kernel, &bricks[0], &name);
     }
 
     println!("Will determine number of unique squares...");
@@ -39,7 +36,7 @@ fn main() {
     let mut unique_square_count: usize = 0;
     let mut total_iterations: usize = 0;
     for (i, kernel) in unique_kernels.iter().enumerate() {
-        let (count, iterations) = pack_four_by_four(&brick, &kernel, &comparator);;
+        let (count, iterations) = backtrack_squares(&bricks, &kernel);
         unique_square_count += count;
         total_iterations += iterations;
         if i % 50 == 0 {
@@ -51,53 +48,51 @@ fn main() {
     println!("Time spent making squares: {:?} s", now.elapsed().as_secs());
 }
 
-fn generate_two_by_two_kernels(brick: &Brick) -> Vec<square::Kernel> {
+fn backtrack_kernels(brick: &Brick) -> Vec<square::Kernel> {
 
-    let mut kernels: Vec<square::Kernel> = Vec::new();
+    let mut kernels = Vec::new();
 
-    let mut faces = [Point2D { x: 0, y: 0 }; N * (N - 1)];
-    for (i, permutation) in permutations(brick, 2).iter().enumerate() {
-        faces[i] = Point2D { x: permutation[0], y: permutation[1] };
+    let mut rotations = [Point2D { x: 0, y: 0 }; N * (N - 1)];
+    for (i, permutation) in permutations(brick, square::M).iter().enumerate() {
+        rotations[i] = Point2D { x: permutation[0], y: permutation[1] };
     }
-    //println!("Kernel Faces: {:?}", faces);
 
-    let mut coords = [(0, 0); KERNEL_DIM * KERNEL_DIM];
-    for (i, coord) in coords.iter_mut().enumerate() {
-        coord.0 = i / KERNEL_DIM;
-        coord.1 = i % KERNEL_DIM;
-    }
-    //println!("Kernel Coordinates: {:?}", coords);
+    let coords = square::make_coords([KERNEL_DIM; square::M]);
+    //println!("Kernel coordinates: {:?}", coords);
 
     let mut sizes = [[Point2D { x: 0, y: 0 }; KERNEL_DIM]; KERNEL_DIM];
     let mut records = [[0; KERNEL_DIM]; KERNEL_DIM];
-    let max_tries = faces.len();
+
+    let max_tries = rotations.len();
 
     let mut i: usize = 0;
+
     loop {
-        if i == KERNEL_DIM * KERNEL_DIM { // We have successfully placed bricks everywhere.
-            kernels.push(sizes);
-            i = i - 1; // Carry on.
-        }
-
         let coord = coords[i];
-        let (x, y) = coord;
+        let (x, y) = (coord[0], coord[1]);
 
-        if records[x][y] == max_tries { // We have tried all faces at this coord.
-            records[x][y] = 0; // Reset tries.
-            sizes[x][y] = Point2D { x: 0, y: 0 }; // Remove brick from sizes.
+        if records[x][y] < max_tries { // We'll try placing a brick.
+            sizes[x][y] = rotations[records[x][y]]; // Fetch next rotation and place brick.
+            records[x][y] += 1; // Register that this rotation has been tried.
+            if square::kernel_is_brick_valid(&sizes, &coord) {
+                if i == KERNEL_DIM * KERNEL_DIM - 1 { // We have successfully placed bricks everywhere.
+                    kernels.push(sizes);
+                } else {
+                    i += 1; // Go to next coord.
+                    continue;
+                }
+            }
+        } else { // We have tried all rotations at this coord.
             if i == 0 {
                 // There aren't any more possibilities.
                 break;
-            } else {
-                i -= 1 // Backtrack.
             }
-        } else { // We'll try placing a brick.
-            sizes[x][y] = faces[records[x][y]]; // Fetch next rotation and place brick.
-            if square::kernel_is_brick_valid(&sizes, coord) {
-                i += 1; // Go to next coord.
-            }
-            records[x][y] += 1; // Register that this rotation has been tried.
+            records[x][y] = 0; // Reset tries.
+            i -= 1 // Backtrack.
         }
+        let coord = coords[i];
+        let (x, y) = (coord[0], coord[1]);
+        sizes[x][y] = Point2D::ZERO; // Remove brick from sizes.
     }
 
     println!("Kernel count including rotations and reflections: {:?}", kernels.len());
@@ -105,75 +100,108 @@ fn generate_two_by_two_kernels(brick: &Brick) -> Vec<square::Kernel> {
     kernels
 }
 
-fn pack_four_by_four(brick: &Brick, kernel: &square::Kernel, comparator: &Comparator) -> (usize, usize) {
+struct Packing {
+    positions: square::Square,
+    sizes: square::Square,
+    bricks: Vec<Point2D>
+}
 
-    let mut rotations = [Point2D { x: 0, y: 0 }; N * (N - 1)];
-    for (i, permutation) in permutations(brick, 2).iter().enumerate() {
-        rotations[i] = Point2D { x: permutation[0], y: permutation[1] };
+impl Packing {
+    fn new(brick: &Brick) -> Packing {
+        Packing {
+            positions: [[Point2D::ZERO; N]; N],
+            sizes: [[Point2D::ZERO; N]; N],
+            bricks: permutations(brick, square::M).iter().map(|permutation| {
+                Point2D { x: permutation[0], y: permutation[1] }
+            }).collect()
+        }
     }
-    //println!("Rotations: {:?}", rotations);
 
-    let mut coords = [(0, 0); N * N];
-    for (i, coord) in coords.iter_mut().enumerate() {
-        coord.0 = i / N;
-        coord.1 = i % N;
+    fn place(&mut self, coord: &square::Coord, brick_index: usize) {
+        let (x, y) = (coord[0], coord[1]);
+        self.sizes[x][y] = self.bricks[brick_index];
+        square::position_brick(&mut self.positions, &self.sizes, &coord);
     }
+
+    fn remove(&mut self, coord: &square::Coord) {
+        let (x, y) = (coord[0], coord[1]);
+        self.sizes[x][y] = Point2D::ZERO; // Remove brick from sizes.
+        self.positions[x][y] = Point2D::ZERO; // Remove brick from positions.
+    }
+
+    fn is_valid(&self, coord: &square::Coord) -> bool {
+        square::is_brick_valid(&self.positions, &self.sizes, &coord)
+        //&& !square::makes_sharp_corner(&self.positions, &self.sizes, &coord)
+    }
+}
+
+fn backtrack_squares(bricks: &[Brick], kernel: &square::Kernel) -> (usize, usize) {
+    let mut packings: Vec<Packing> = bricks.iter().map(|brick| Packing::new(brick)).collect();
+
+    let coords = square::make_coords([N; square::M]);
     //println!("Coordinates: {:?}", coords);
 
-    let mut square_sizes = Vec::new();
+    let mut kernel_map: HashMap<(usize, usize), usize> = HashMap::new();
+    for x in 0..KERNEL_DIM {
+        for y in 0..KERNEL_DIM {
+            let kernel_brick = kernel[x][y];
+            let brick_index = permutations(&bricks[0], square::M).iter().position(|permutation| {
+                permutation[0] == kernel_brick[0] && permutation[1] == kernel_brick[1]
+            }).unwrap();
+            kernel_map.insert((x + 1, y + 1), brick_index);
+        }
+    }
 
-    let mut sizes = [[Point2D { x: 0, y: 0 }; N]; N];
-    let mut positions = [[Point2D { x: 0, y: 0 }; N]; N];
+    let mut squares = Vec::new();
+
     let mut records = [[0; N]; N];
 
     let mut i: usize = 0;
     let mut iteration: usize = 0;
-    //let mut successes: usize = 0;
+
     loop {
-        if i == N * N { // We have successfully placed N * N bricks.
-            square_sizes.push(sizes);
-            //successes += 1;
-            i = i - 1; // Carry on.
-        }
+        iteration += 1;
 
         let coord = coords[i];
-        let (x, y) = coord;
-        let inside_kernel = 0 < x && x < N - 1 && 0 < y && y < N - 1;
-        let max_tries = if inside_kernel { 1 } else { rotations.len() };
+        let (x, y) = (coord[0], coord[1]);
+        let inside_kernel = kernel_map.contains_key(&(x, y));
+        let max_tries = if inside_kernel { 1 } else { N * (N - 1) };
 
-        if records[x][y] == max_tries { // We have tried all rotations at this coord.
-            records[x][y] = 0; // Reset tries.
-            sizes[x][y] = Point2D { x: 0, y: 0 }; // Remove brick from sizes.
-            positions[x][y] = Point2D { x: 0, y: 0 }; // Remove brick from positions.
-            if i == 0 {
-                // There aren't any more possibilities.
-                //println!("We have tried everything! :)");
-                break;
+        if records[x][y] < max_tries { // We'll try placing a brick.
+            let brick_index = if inside_kernel { // Fetch next rotation and place brick.
+                kernel_map[&(x, y)]
             } else {
-                i -= 1 // Backtrack.
-            }
-        } else { // We'll try placing a brick.
-            sizes[x][y] = if inside_kernel { // Fetch next rotation and place brick.
-                kernel[x - 1][y - 1]
-            } else {
-                rotations[records[x][y]]
+                records[x][y]
             };
-            square::position_brick(&mut positions, &sizes, coord);
-            if square::is_brick_valid(&positions, &sizes, coord, &comparator) {
-                i += 1; // Go to next coord.
+            for packing in &mut packings {
+                packing.place(&coord, brick_index);
             }
             records[x][y] += 1; // Register that this rotation has been tried.
-        }
 
-        iteration += 1;
-        if iteration % 10_000_000 == 0 {
-            println!("Status at iteration {:?} is: {:?}", iteration, records[0][0]);
+            if packings.iter().all(|packing| packing.is_valid(&coord)) {
+                if i == N * N - 1 { // We have successfully placed all bricks.
+                    squares.push(packings[0].sizes);
+                } else {
+                    i += 1; // Go to next coord.
+                    continue;
+                }
+            }
+        } else { // We have tried all rotations at this coord.
+            if i == 0 {
+                // There aren't any more possibilities.
+                break;
+            }
+            records[x][y] = 0; // Reset tries.
+            i -= 1 // Backtrack.
+        }
+        for packing in &mut packings {
+            packing.remove(&coords[i]);
         }
     }
-    let before_count = square_sizes.len();
+    let before_count = squares.len();
     if square::kernel_is_self_symmetric(kernel) {
-        square::drain_symmetries(&mut square_sizes);
-        println!("Symmetric kernel: Reduced squares from {:?} to {:?}", before_count, square_sizes.len());
+        square::drain_symmetries(&mut squares);
+        println!("Symmetric kernel: Reduced squares from {:?} to {:?}", before_count, squares.len());
     }
-    (square_sizes.len(), iteration)
+    (squares.len(), iteration)
 }

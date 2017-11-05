@@ -3,7 +3,23 @@ use std::cmp::min;
 use super::*;
 
 pub type Square = [[Point2D; N]; N];
+pub const M: usize = 2;
+pub type Coord = [usize; M];
+pub type Shape = [usize; M];
 pub type Kernel = [[Point2D; KERNEL_DIM]; KERNEL_DIM];
+
+pub fn make_coords(shape: Shape) -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
+        (0..size).collect()
+    }).collect();
+    product(&axes).iter().map(|list| {
+        let mut coord = [0; M];
+        for i in 0..M {
+            coord[i] = list[i];
+        }
+        coord
+    }).collect()
+}
 
 pub fn kernel_plot(sizes: &Kernel, brick: &[IntType; N], name: &String) {
     let mut plots = Vec::new();
@@ -63,10 +79,10 @@ pub fn kernel_drain_symmetries(kernels: &mut Vec<Kernel>) {
 
 pub fn kernel_symmetries(kernel: &Kernel) -> Vec<Kernel> {
     let mut symmetries = Vec::new();
-    let dims = (0..2).collect::<Vec<usize>>();
+    let dims = (0..M).collect::<Vec<usize>>();
     let directions = [Direction::Positive, Direction::Negative];
-    let direction_choices = combinations_with_repetition(&directions, 2);
-    let axis_permutations = permutations(&dims, 2);
+    let direction_choices = combinations_with_repetition(&directions, M);
+    let axis_permutations = permutations(&dims, M);
     for axes in axis_permutations.iter() {
         for directions in direction_choices.iter() {
             let mut symmetry = [[Point2D { x: 0, y: 0 }; KERNEL_DIM]; KERNEL_DIM];
@@ -98,19 +114,18 @@ pub fn kernel_is_self_symmetric(kernel: &Kernel) -> bool {
     kernel_symmetries(kernel)[1..].contains(kernel)
 }
 
-pub fn kernel_is_brick_valid(sizes: &Kernel, (x, y): (usize, usize)) -> bool {
-    let brick = sizes[x][y];
-    for i in 0..y {
-        if sizes[x][i].y == brick.y {
-            return false
+pub fn kernel_is_brick_valid(sizes: &Kernel, coord: &Coord) -> bool {
+    let brick = sizes[coord[0]][coord[1]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][dim] == brick[dim] {
+                return false
+            }
         }
     }
-    for i in 0..x {
-        if sizes[i][y].x == brick.x {
-            return false
-        }
-    }
-    return true;
+    true
 }
 
 pub fn plot(positions: &Square, sizes: &Square, brick: &[IntType], name: &String) {
@@ -166,10 +181,10 @@ pub fn drain_symmetries(squares: &mut Vec<Square>) {
 
 pub fn symmetries(square: &Square) -> Vec<Square> {
     let mut symmetries = Vec::new();
-    let dims = (0..2).collect::<Vec<usize>>();
+    let dims = (0..M).collect::<Vec<usize>>();
     let directions = [Direction::Positive, Direction::Negative];
-    let direction_choices = combinations_with_repetition(&directions, 2);
-    let axis_permutations = permutations(&dims, 2);
+    let direction_choices = combinations_with_repetition(&directions, M);
+    let axis_permutations = permutations(&dims, M);
     for axes in axis_permutations.iter() {
         for directions in direction_choices.iter() {
             let mut symmetry = [[Point2D { x: 0, y: 0 }; N]; N];
@@ -197,32 +212,35 @@ pub fn symmetries(square: &Square) -> Vec<Square> {
     symmetries
 }
 
-pub fn position_brick(positions: &mut Square, &sizes: &Square, (x, y): (usize, usize)) {
-    let x_pos = if x == 0 { 0 } else {
-        positions[x - 1][y].x + sizes[x - 1][y].x
-    };
-    let y_pos = if y == 0 { 0 } else {
-        positions[x][y - 1].y + sizes[x][y - 1].y
-    };
-    positions[x][y] = Point2D { x: x_pos, y: y_pos };
-}
-
-pub fn is_brick_valid(positions: &Square, sizes: &Square, (x, y): (usize, usize), comparator: &Comparator) -> bool {
-    let brick = sizes[x][y];
-    for i in 0..y {
-        if sizes[x][i].y == brick.y {
-            return false
+pub fn position_brick(positions: &mut Square, &sizes: &Square, coord: &Coord) {
+    let mut pos = Point2D::ZERO;
+    for (dim, &c) in coord.iter().enumerate() {
+        if c > 0 {
+            let mut index = coord.clone();
+            index[dim] -= 1;
+            pos[dim] = positions[index[0]][index[1]][dim] + sizes[index[0]][index[1]][dim]
         }
     }
-    for i in 0..x {
-        if sizes[i][y].x == brick.x {
-            return false
-        }
-    }
-    return !does_intersect(&positions, &sizes, (x, y), &comparator);
+    positions[coord[0]][coord[1]] = pos;
 }
 
-pub fn does_intersect(positions: &Square, sizes: &Square, (x, y): (usize, usize), comparator: &Comparator) -> bool {
+pub fn is_brick_valid(positions: &Square, sizes: &Square, coord: &Coord) -> bool {
+    let brick = sizes[coord[0]][coord[1]];
+    for (dim, &c) in coord.iter().enumerate() {
+        let mut index = coord.clone();
+        for j in 0..c {
+            index[dim] = j;
+            if sizes[index[0]][index[1]][dim] == brick[dim] {
+                return false
+            }
+        }
+    }
+    !does_intersect(&positions, &sizes, &coord)
+}
+
+pub fn does_intersect(positions: &Square, sizes: &Square, coord: &Coord) -> bool {
+    let (x, y) = (coord[0], coord[1]);
+
     let this_intervals = Point2D::make_intervals(&positions[x][y], &sizes[x][y]);
 
     let other_x_b = if x == 0 { 0 } else { x - 1 };
@@ -234,7 +252,7 @@ pub fn does_intersect(positions: &Square, sizes: &Square, (x, y): (usize, usize)
         for other_y in other_y_b..other_y_e {
             if other_x == x && other_y == y { continue } // Skip itself.
             let other_intervals = Point2D::make_intervals(&positions[other_x][other_y], &sizes[other_x][other_y]);
-            if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| comparator.intervals_intersect(&a, &b)) {
+            if other_intervals.iter().zip(this_intervals.iter()).all(|(a, b)| a.intersects(&b)) {
                 return true
             }
         }
