@@ -166,7 +166,6 @@ fn main() {
     check_duality(&packings, &brick);
 
     println!("Time spent making packing: {:?} s", now.elapsed().as_secs());
-
 }
 
 fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution_b: &HashMap<[usize; 2], [usize; 2]>) -> Group {
@@ -331,7 +330,7 @@ fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>,
                     let count = type_map.entry(type_key).or_insert(0);
                     *count += 1;
 
-                    let mut orientation_map = orientations_map.entry(type_key).or_insert(HashMap::new());
+                    let orientation_map = orientations_map.entry(type_key).or_insert(HashMap::new());
                     let orientation = [size[other_dims[0]], size[other_dims[1]], size[other_dims[2]]];
                     let orientations = permutations(&list_except(brick, &[type_key]), N-1);
                     let mut idx: Option<_> = None;

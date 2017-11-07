@@ -27,7 +27,7 @@ pub fn export(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &Strin
         let brick = export::Brick {
             coord: coord.to_vec(),
             position: vec!(position[0], position[1], position[2]),
-            size: vec!(size[0], size[1], size[2]),
+            size: vec!(size[0], size[1], size[2])
         };
         bricks.push(brick);
     }
