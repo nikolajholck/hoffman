@@ -146,14 +146,12 @@ fn main() {
         new_brick
     }).collect();
 
-    let comparator = Comparator::constructor(&brick);
-
     let mut packings: Vec<(tesseract::Tesseract, tesseract::Tesseract)> = Vec::new();
 
     for solutions in &solution_options {
         for current_brick in &brick_options {
             let group = combine(current_brick, &solutions[0], &solutions[1]);
-            packings.push(convert_to_packing(&group, &comparator));
+            packings.push(convert_to_packing(&group));
         }
     }
 
@@ -164,8 +162,8 @@ fn main() {
     }
     println!("Total number of permuted packings: {:?}", packings.len());
 
-    make_statistics(&packings, &brick, &comparator);
-    check_duality(&packings, &brick, &comparator);
+    make_statistics(&packings, &brick);
+    check_duality(&packings, &brick);
 
     println!("Time spent making packing: {:?} s", now.elapsed().as_secs());
 
@@ -223,7 +221,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
     groups.pop().unwrap()
 }
 
-fn convert_to_packing(group: &Group, comparator: &Comparator) -> (tesseract::Tesseract, tesseract::Tesseract) {
+fn convert_to_packing(group: &Group) -> (tesseract::Tesseract, tesseract::Tesseract) {
     let coords = tesseract::make_coords([N; N]);
 
     let mut sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
@@ -235,7 +233,7 @@ fn convert_to_packing(group: &Group, comparator: &Comparator) -> (tesseract::Tes
         tesseract::position_brick(&mut positions, &sizes, &coord);
     }
     for coord in coords.iter() {
-        assert!(tesseract::is_brick_valid(&positions, &sizes, &coord, &comparator), "Error: Something is wrong with the packing at {:?}", coord);
+        assert!(tesseract::is_brick_valid(&positions, &sizes, &coord), "Error: Something is wrong with the packing at {:?}", coord);
     }
     (positions, sizes)
 }
@@ -273,13 +271,13 @@ pub fn export_cubes(positions: &tesseract::Tesseract, sizes: &tesseract::Tessera
     }
 }
 
-fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick, comparator: &Comparator) {
+fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick) {
     let dims = (0..N).collect::<Vec<_>>();
     let permutations = permutations(&dims, N);
     for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
         let res: usize = packings.iter().enumerate().map(|(_i, &(_positions, sizes))| {
-            match apply_permutation(&sizes, &permutation, brick, comparator) {
+            match apply_permutation(&sizes, &permutation, brick) {
                 Some(_) => 1,
                 None    => 0
             }
@@ -288,7 +286,7 @@ fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, b
     }
 }
 
-fn apply_permutation(sizes: &tesseract::Tesseract, permutation: &[usize], brick: &Brick, comparator: &Comparator) -> Option<(tesseract::Tesseract, tesseract::Tesseract)> {
+fn apply_permutation(sizes: &tesseract::Tesseract, permutation: &[usize], brick: &Brick) -> Option<(tesseract::Tesseract, tesseract::Tesseract)> {
     let mut map = HashMap::new();
     for (i, v) in brick.iter().enumerate() {
         map.insert(v, i);
@@ -305,14 +303,14 @@ fn apply_permutation(sizes: &tesseract::Tesseract, permutation: &[usize], brick:
         }
         perm_sizes[x][y][z][w] = perm_size;
         tesseract::position_brick(&mut perm_positions, &perm_sizes, &coord);
-        if !tesseract::is_brick_valid(&perm_positions, &perm_sizes, &coord, comparator) {
+        if !tesseract::is_brick_valid(&perm_positions, &perm_sizes, &coord) {
             return None;
         }
     }
     Some((perm_positions, perm_sizes))
 }
 
-fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick, _comparator: &Comparator) {
+fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick) {
     let dims = (0..N).collect::<Vec<_>>();
     for &(_positions, sizes) in packings.iter() {
         for dim in 0..N {
