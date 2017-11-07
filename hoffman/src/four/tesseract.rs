@@ -19,6 +19,28 @@ pub fn make_coords(shape: Shape) -> Vec<Coord> {
     }).collect()
 }
 
+pub fn export(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name: &String) {
+    let coords = make_coords([N; N]);
+    let mut bricks: Vec<export::Brick> = Vec::new();
+    for coord in coords.iter() {
+        let position = positions[coord[0]][coord[1]][coord[2]][coord[3]];
+        let size = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
+        let brick = export::Brick {
+            coord: coord.to_vec(),
+            position: vec!(position[0], position[1], position[2], position[3]),
+            size: vec!(size[0], size[1], size[2], size[3])
+        };
+        bricks.push(brick);
+    }
+    let export = export::Export {
+        name: Some(format!("{}", name)),
+        dimensions: N,
+        brick: brick.to_vec(),
+        bricks: bricks
+    };
+    export.save(&format!("tesseracts/{}", name));
+}
+
 pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name: &String) {
     let dim_labels = ["x", "y", "z", "w"];
     let dims: Vec<usize> = (0..N).collect();

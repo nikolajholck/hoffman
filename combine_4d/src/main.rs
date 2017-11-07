@@ -158,7 +158,7 @@ fn main() {
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("4D Combined Packing {:?}", i);
         tesseract::plot(&positions, &sizes, &brick, &name);
-        export_cubes(&positions, &sizes, &brick, &name);
+        tesseract::export(&positions, &sizes, &brick, &name);
     }
     println!("Total number of permuted packings: {:?}", packings.len());
 
@@ -235,39 +235,6 @@ fn convert_to_packing(group: &Group) -> (tesseract::Tesseract, tesseract::Tesser
         assert!(tesseract::is_brick_valid(&positions, &sizes, &coord), "Error: Something is wrong with the packing at {:?}", coord);
     }
     (positions, sizes)
-}
-
-pub fn export_cubes(positions: &tesseract::Tesseract, sizes: &tesseract::Tesseract, brick: &[IntType; N], name: &String) {
-    for dim in 0..4 {
-        let mut bricks: Vec<export::Brick> = Vec::new();
-        let other_dims = list_except(&(0..4).collect::<Vec<_>>(), &[dim]);
-        for a in 0..4 {
-            for b in 0..4 {
-                for c in 0..4 {
-                    for level in 0..1 {
-                        let mut coord = vec!(a, b, c);
-                        coord.insert(dim, level);
-                        let position = positions[coord[0]][coord[1]][coord[2]][coord[3]];
-                        let size = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
-                        let brick = export::Brick {
-                            coord: vec!(a, b, c),
-                            position: vec!(position[other_dims[0]], position[other_dims[1]], position[other_dims[2]]),
-                            size: vec!(size[other_dims[0]], size[other_dims[1]], size[other_dims[2]]),
-                        };
-                        bricks.push(brick);
-                    }
-                }
-            }
-        }
-        let name = format!("{} dim-{}", name, dim);
-        let export = export::Export {
-            name: Some(format!("{}", name)),
-            dimensions: 3,
-            brick: brick.to_vec(),
-            bricks: bricks
-        };
-        export.save(&format!("cubes/{}", name));
-    }
 }
 
 fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick) {
