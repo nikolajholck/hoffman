@@ -189,7 +189,6 @@
           object.castShadow = true;
           object.receiveShadow = true;
 
-          // alternate method
           var edges = new THREE.EdgesGeometry( geometry );
           var line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
           line.position.x = position.x + size.x * 0.5 - offset;
