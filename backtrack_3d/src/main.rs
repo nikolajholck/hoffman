@@ -158,11 +158,12 @@ fn compute_distances(packings: &Vec<(cube::Cube, cube::Cube)>) {
         print!("Packing {:2}: ", i);
         let distances = packings.iter().enumerate().map(|(_, &(_, b))| compute_distance(&a, &b)).collect::<Vec<_>>();
         let closest = packings.iter().enumerate().filter(|&(j, _)| i != j).map(|(_, &(_, b))| compute_distance(&a, &b)).min().unwrap();
+        let farthest = packings.iter().enumerate().filter(|&(j, _)| i != j).map(|(_, &(_, b))| compute_distance(&a, &b)).max().unwrap();
+        print!("Closest: {:2}, Farthest: {:2} ", closest, farthest);
         for (k, d) in distances.iter().enumerate().filter(|&(_, &d)| d == closest) {
             print!("({:2}, {:2}) ", k, d);
         }
-        println!("Closest: {:2}", closest);
-
+        println!();
     }
 }
 
