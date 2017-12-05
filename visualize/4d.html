@@ -462,7 +462,7 @@
 
       function setLevel(level) {
         var sideSum = data.brick.reduce((a, b) => a + b);
-        var offset = sideSum * level;
+        var offset = sideSum * level * 0.999999;
         scene.traverse(function(node) {
           if ('begin' in node.userData && 'end' in node.userData) {
             node.visible = node.userData.begin <= offset && offset < node.userData.end;
