@@ -96,7 +96,13 @@
 
         var reader = new FileReader();
         reader.onloadend = function(e) {
-          loadData(JSON.parse(this.result));
+          var newData = JSON.parse(this.result);
+          if (newData.dimensions != 3) {
+            alert('This is not a 3D visualization');
+            return;
+          }
+          data = newData;
+          loadData();
           render();
         };
         reader.readAsText(file);
@@ -106,7 +112,7 @@
       var camera, controls, scene, renderer;
 
       init();
-      loadData(data);
+      loadData();
       animate();
 
       function init() {
@@ -136,12 +142,7 @@
         window.addEventListener('resize', onWindowResize, false);
       }
 
-      function loadData(newData) {
-        data = newData;
-        if (data.dimensions != 3) {
-          alert('This is not a 3D visualization');
-          return;
-        }
+      function loadData() {
         while(scene.children.length > 0) {
           scene.remove(scene.children[0]);
         }
@@ -172,7 +173,7 @@
           var object = new THREE.Mesh( geometry, material);
           var faces = combinations(s, 2);
 
-          for (var k = 0; k < 3; ++k ) {
+          for (var k = 0; k < 3; ++k) {
             // https://stackoverflow.com/questions/11252592/
             var face = faces.reverse()[k];
             var colorIndex = combs.findIndex(comb => face.every(v => comb.includes(v)))
