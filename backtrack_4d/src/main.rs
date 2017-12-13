@@ -20,13 +20,12 @@ fn main() {
     let now = Instant::now();
     let packings = backtrack_tesseracts(&bricks);
     let (positions, sizes) = packings[0];
-    let name = format!("4D Packing final");
-    tesseract::plot(&positions, &sizes, &bricks[0], &name);
     println!("Positions: {:?}", positions);
     println!("Sizes: {:?}", sizes);
-
+    let name = format!("4D Packing final");
+    tesseract::plot(&positions, &sizes, &bricks[0], &name);
+    tesseract::export(&positions, &sizes, &bricks[0], &name);
     println!("Time spent making packing: {:?} s", now.elapsed().as_secs());
-
 }
 
 struct Packing {
@@ -101,14 +100,20 @@ fn backtrack_tesseracts(bricks: &[Brick]) -> Vec<(tesseract::Tesseract, tesserac
     let mut i: usize = 0;
     let mut iteration: usize = 0;
     //let mut successes: usize = 0;
+    let now = Instant::now();
 
     loop {
         iteration += 1;
-        if iteration % 10_000_000 == 0 {
-            println!("Iteration {:?}, i: {:?}, records:", iteration, i);
-            for row in &records[1] {
-                println!("{:?}", row);
+        if iteration % 100_000_000 == 0 {
+            println!("Have spent {} seconds at iteration {}.", now.elapsed().as_secs(), iteration);
+            println!("Hyper-rectangles placed: {}.", i);
+            println!("Current Records:");
+            for level in &records {
+                for row in level {
+                    println!("{:?}", row);
+                }
             }
+            println!();
             let name = format!("4D Packing {}", iteration);
             tesseract::plot(&packings[0].positions, &packings[0].sizes, &bricks[0], &name);
         }
@@ -126,6 +131,7 @@ fn backtrack_tesseracts(bricks: &[Brick]) -> Vec<(tesseract::Tesseract, tesserac
 
             if packings.iter().all(|packing| packing.is_valid(&coord)) {
                 if i == N * N * N * N - 1 { // We have successfully placed all bricks.
+                    println!("Packing found!");
                     println!("Iterations: {:?}", iteration);
                     println!("Records: {:?}", records);
                     solutions.push((packings[0].positions, packings[0].sizes));
