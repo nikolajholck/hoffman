@@ -19,11 +19,12 @@ pub struct Export {
 }
 
 impl Brick {
-    fn to_json(&self) -> String {
+    fn to_json(&self, brick: &Vec<IntType>) -> String {
         let coord = format!("[{}]", self.coord.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", "));
         let position = format!("[{}]", self.position.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", "));
         let size = format!("[{}]", self.size.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", "));
-        format!("{{ \"coord\": {}, \"position\": {}, \"size\": {} }}", coord, position, size)
+        let permutation = format!("[{}]", self.size.iter().map(|&v| brick.iter().position(|&b| b == v).unwrap().to_string() ).collect::<Vec<_>>().join(", "));
+        format!("{{ \"coord\": {}, \"position\": {}, \"size\": {}, \"permutation\": {} }}", coord, position, size, permutation)
     }
 }
 
@@ -32,7 +33,7 @@ impl Export {
         let name = self.name.clone().unwrap_or(String::from(""));
         let dimensions = self.dimensions.to_string();
         let brick = format!("[{}]", self.brick.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", "));
-        let bricks = format!("[{}]", self.bricks.iter().map(|brick| brick.to_json()).collect::<Vec<_>>().join(",\n"));
+        let bricks = format!("[{}]", self.bricks.iter().map(|brick| brick.to_json(&self.brick)).collect::<Vec<_>>().join(",\n"));
         format!("{{ \"name\": \"{}\", \"dimensions\": {}, \"brick\": {}, \"bricks\": {} }}", name, dimensions, brick, bricks)
     }
 
