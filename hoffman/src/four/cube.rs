@@ -62,6 +62,28 @@ pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String)
     figure.save(&format!("cubes/{}", name));
 }
 
+pub fn export(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String) {
+    let coords = make_coords([N; M]);
+    let mut bricks: Vec<export::Brick> = Vec::new();
+    for coord in coords.iter() {
+        let position = positions[coord[0]][coord[1]][coord[2]];
+        let size = sizes[coord[0]][coord[1]][coord[2]];
+        let brick = export::Brick {
+            coord: coord.to_vec(),
+            position: vec!(position[0], position[1], position[2]),
+            size: vec!(size[0], size[1], size[2])
+        };
+        bricks.push(brick);
+    }
+    let export = export::Export {
+        name: Some(format!("{}", name)),
+        dimensions: M,
+        brick: brick.to_vec(),
+        bricks: bricks
+    };
+    export.save(&format!("cubes/{}", name));
+}
+
 pub fn symmetries(cube: &Cube) -> Vec<Cube> {
     let mut symmetries = Vec::new();
     let dims = (0..N).collect::<Vec<usize>>();
@@ -163,4 +185,14 @@ pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
         }
     }
     false
+}
+
+pub fn bricks_intersect(positions: &Cube, sizes: &Cube, first: &Coord, second: &Coord) -> bool {
+    let (fx, fy, fz) = (first[0], first[1], first[2]);
+    let (sx, sy, sz) = (second[0], second[1], second[2]);
+
+    let first_intervals = Point3D::make_intervals(&positions[fx][fy][fz], &sizes[fx][fy][fz]);
+    let second_intervals = Point3D::make_intervals(&positions[sx][sy][sz], &sizes[sx][sy][sz]);
+
+    first_intervals.iter().zip(second_intervals.iter()).all(|(a, b)| a.intersects(&b))
 }

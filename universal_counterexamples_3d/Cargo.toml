@@ -1,0 +1,8 @@
+[package]
+name = "universal_counterexamples_3d"
+version = "0.1.0"
+authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
+
+[dependencies]
+hoffman = { path = "../hoffman" }
+serde_json = "1.0.7"

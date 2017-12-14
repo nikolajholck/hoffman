@@ -137,7 +137,7 @@ pub fn drain_symmetries(packings: &mut Vec<(Cube, Cube)>) {
     }
 }
 
-pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
+pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
     let this_intervals = Point3D::make_intervals(&positions[coord[0]][coord[1]][coord[2]], &sizes[coord[0]][coord[1]][coord[2]]);
     let directions = coord.iter().enumerate().filter(|&(_, &c)| c > 0).map(|(i, _)| i).collect::<Vec<usize>>();
     for &i in &directions {
@@ -206,7 +206,7 @@ pub fn makes_sharp_corner(positions: &Cube, sizes: &Cube, coord: &[usize; N]) ->
     false
 }
 
-pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &[usize; N]) {
+pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &Coord) {
     let mut pos = Point3D::ZERO;
     for (dim, &c) in coord.iter().enumerate() {
         if c > 0 {
@@ -218,7 +218,7 @@ pub fn position_brick(positions: &mut Cube, &sizes: &Cube, coord: &[usize; N]) {
     positions[coord[0]][coord[1]][coord[2]] = pos;
 }
 
-pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
+pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
     let brick = sizes[coord[0]][coord[1]][coord[2]];
     for (dim, &c) in coord.iter().enumerate() {
         let mut index = coord.clone();
@@ -232,7 +232,7 @@ pub fn is_brick_valid(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> boo
     !does_intersect(&positions, &sizes, &coord)
 }
 
-pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> bool {
+pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &Coord) -> bool {
     let (x, y, z) = (coord[0], coord[1], coord[2]);
     let this_intervals = Point3D::make_intervals(&positions[x][y][z], &sizes[x][y][z]);
 
@@ -255,4 +255,14 @@ pub fn does_intersect(positions: &Cube, sizes: &Cube, coord: &[usize; N]) -> boo
         }
     }
     false
+}
+
+pub fn bricks_intersect(positions: &Cube, sizes: &Cube, first: &Coord, second: &Coord) -> bool {
+    let (fx, fy, fz) = (first[0], first[1], first[2]);
+    let (sx, sy, sz) = (second[0], second[1], second[2]);
+
+    let first_intervals = Point3D::make_intervals(&positions[fx][fy][fz], &sizes[fx][fy][fz]);
+    let second_intervals = Point3D::make_intervals(&positions[sx][sy][sz], &sizes[sx][sy][sz]);
+
+    first_intervals.iter().zip(second_intervals.iter()).all(|(a, b)| a.intersects(&b))
 }
