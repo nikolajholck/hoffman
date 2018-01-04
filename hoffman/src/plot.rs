@@ -14,6 +14,14 @@ const COLORS: &'static [&'static str] = &[
     "rgb(252, 223, 7)",  // Yellow
     "rgb(138, 40, 143)", // Violet
 ];
+const TIKZ_COLORS: &'static [&'static str] = &[
+    "custom-red",  // Red
+    "custom-green", // Green
+    "custom-blue",  // Blue
+    "custom-orange", // Orange
+    "custom-yellow",  // Yellow
+    "custom-violet", // Violet
+];
 const MARGIN: f64 = 40.0;
 const WIDTH: f64 = 800.0;
 
@@ -45,11 +53,21 @@ impl Rectangle {
         format!("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" style=\"fill:{};stroke:#000;stroke-width:1;\" vector-effect=\"non-scaling-stroke\" />",
         self.x, self.y, self.width, self.height, COLORS[colors[&(self.width + self.height)]])
     }
+
+    fn to_tikz(&self, colors: &HashMap<IntType, usize>) -> String {
+        if self.width == 0 || self.height == 0 { return format!("") }
+        format!("\\filldraw[fill={}, draw=black] ({},{}) rectangle ({},{});",
+        TIKZ_COLORS[colors[&(self.width + self.height)]], self.x, self.y, self.x + self.width, self.y + self.height)
+    }
 }
 
 impl Plot {
     fn to_svg(&self, colors: &HashMap<IntType, usize>) -> String {
         self.rectangles.iter().map(|rect| rect.to_svg(colors)).collect::<Vec<String>>().join("\n")
+    }
+
+    fn to_tikz(&self, colors: &HashMap<IntType, usize>) -> String {
+        self.rectangles.iter().map(|rect| rect.to_tikz(colors)).collect::<Vec<String>>().join("\n")
     }
 }
 
@@ -86,6 +104,17 @@ impl Figure {
         svg
     }
 
+    fn to_tikz(&self) -> String {
+        if self.plots.len() != 1 {
+            println!("Warning: TikZ exported only one out of {} plots provided.", self.plots.len());
+        }
+        let mut colors: HashMap<IntType, usize> = HashMap::new();
+        for (i, sum) in combinations(&self.brick, 2).iter().map(|li| li.iter().sum()).enumerate() {
+            colors.insert(sum, i);
+        }
+        self.plots[0].to_tikz(&colors)
+    }
+
     pub fn save(&self, filename: &String) {
 
         // Create a path to the desired file.
@@ -104,6 +133,29 @@ impl Figure {
 
         // Write string to `file`, returns `io::Result<()>`.
         match file.write_all(svg.as_bytes()) {
+            Err(why) => panic!("couldn't write to {}: {}", display, why.description()),
+            Ok(_) => return
+        }
+    }
+
+    pub fn save_tikz(&self, filename: &String) {
+
+        // Create a path to the desired file.
+        let path_str = format!("plots/{}.tikz", filename.clone());
+        let path = Path::new(&path_str);
+        let display = path.display();
+
+        // Open file in write-only mode, returns `io::Result<File>`.
+        let mut file = match File::create(&path) {
+            Err(why) => panic!("couldn't create {}: {}", display, why.description()),
+            Ok(file) => file
+        };
+
+        // Generate TIKZ.
+        let tikz = self.to_tikz();
+
+        // Write string to `file`, returns `io::Result<()>`.
+        match file.write_all(tikz.as_bytes()) {
             Err(why) => panic!("couldn't write to {}: {}", display, why.description()),
             Ok(_) => return
         }
