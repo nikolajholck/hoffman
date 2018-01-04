@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 fn main() {
     let bricks = [
-        [57, 59, 62, 63], // Narrow
-        [53, 54, 57, 59] // Wide
+        [8, 9, 10, 12],  // Wide
+        [10, 12, 13, 14] // Narrow
     ];
 
     println!("Bricks: {:?}", bricks);

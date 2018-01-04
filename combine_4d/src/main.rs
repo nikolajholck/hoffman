@@ -117,9 +117,8 @@ impl Group {
 fn main() {
     let now = Instant::now();
 
-    // let brick = [53, 54, 57, 59]; // 10 (wide)
-    let brick = [57, 59, 62, 63]; // 10 (narrow)
-    // let brick = [1, 2, 4, 9]; // testing
+    let brick = [8, 9, 10, 12]; // Wide
+    //let brick = [10, 12, 13, 14]; // Narrow
 
     let solution2d_one: HashMap<[usize; 2], [usize; 2]> =
     [([0, 0], [0, 1]),
