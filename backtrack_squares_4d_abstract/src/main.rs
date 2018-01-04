@@ -6,13 +6,21 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 fn main() {
-    /* Narrow:    7807933 Squares
-       Wide:      7807933 Squares
-       Universal: 6406310 Squares */
+    /* Unique:
+       Equal:     9 680 536 squares
+       Narrow:    7 807 933 squares
+       Wide:      7 807 933 squares
+       Universal: 6 406 310 squares */
+
+   /* Including symmetries:
+      Equal:     77 436 138 squares (Spiridonov)
+      Narrow:    62 458 582 squares
+      Wide:      62 458 582 squares
+      Universal: 51 247 458 squares */
 
     let bricks = [
-        [57, 59, 62, 63], // Narrow
-        [53, 54, 57, 59]  // Wide
+        [8, 9, 10, 12],  // Wide
+        [10, 12, 13, 14] // Narrow
     ];
 
     println!("Bricks: {:?}", bricks);
