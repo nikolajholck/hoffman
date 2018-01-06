@@ -24,6 +24,9 @@ pub fn export(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &Strin
     for coord in coords.iter() {
         let position = positions[coord[0]][coord[1]][coord[2]];
         let size = sizes[coord[0]][coord[1]][coord[2]];
+        if size == Point3D::ZERO {
+            continue;
+        }
         let brick = export::Brick {
             coord: coord.to_vec(),
             position: vec!(position[0], position[1], position[2]),
