@@ -55,6 +55,7 @@ pub fn kernel_plot(sizes: &Kernel, brick: &[IntType; N], name: &String) {
         columns: 4
     };
     figure.save(&format!("squares/kernels/{}", name));
+    figure.save_tikz(&format!("squares/kernels/{}", name));
 }
 
 pub fn kernel_drain_symmetries(kernels: &mut Vec<Kernel>) {
@@ -157,6 +158,7 @@ pub fn plot(positions: &Square, sizes: &Square, brick: &[IntType], name: &String
         columns: 1
     };
     figure.save(&format!("squares/{}", name));
+    figure.save_tikz(&format!("squares/{}", name));
 }
 
 pub fn drain_symmetries(squares: &mut Vec<Square>) {

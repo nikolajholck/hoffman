@@ -84,6 +84,7 @@ pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name
         columns: N
     };
     figure.save(&format!("tesseracts/{}", name));
+    figure.save_tikz(&format!("tesseracts/{}", name));
 }
 
 pub fn makes_sharp_corner(positions: &Tesseract, sizes: &Tesseract, coord: &Coord) -> bool {
