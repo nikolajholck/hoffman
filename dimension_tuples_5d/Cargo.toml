@@ -1,0 +1,6 @@
+[package]
+name = "dimension_tuples_5d"
+version = "0.1.0"
+authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
+
+[dependencies]
