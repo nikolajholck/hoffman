@@ -364,6 +364,7 @@
         document.body.appendChild(container);
 
         camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 10000);
+        //camera = new THREE.OrthographicCamera(-window.innerWidth/28, window.innerWidth/28, window.innerHeight/28, -window.innerHeight/28, 1, 10000);
 
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xffffff);
