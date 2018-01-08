@@ -4,6 +4,7 @@ extern crate serde_json;
 use hoffman::*;
 use hoffman::four::*;
 use std::collections::HashMap;
+use std::time::Instant;
 
 use serde_json::{Value};
 use std::fs::File;
@@ -12,8 +13,10 @@ fn main() {
     let maps = import_packings();
     let coords = cube::make_coords([N; cube::M]);
     let limit = 50;
+    let start = Instant::now();
     for a in 1..limit {
         for b in a..limit {
+            let sub_time = Instant::now();
             for c in b..limit {
                 for d in c..limit {
                     let brick = [a, b, c, d];
@@ -29,15 +32,16 @@ fn main() {
                     }
                 }
             }
-            println!("({}, {}, _, _) dimension tuples passed.", a, b);
+            println!("({}, {}, _, _) dimension tuples passed in {} seconds.", a, b, sub_time.elapsed().as_secs());
         }
     }
+    println!("All dimension tuples passed in {} seconds.", start.elapsed().as_secs());
 }
 
 fn import_packings() -> Vec<HashMap<(usize, usize, usize), Vec<usize>>> {
     let mut maps: Vec<HashMap<(usize, usize, usize), Vec<usize>>> = Vec::new();
-    for i in 1..909 {
-        let file = File::open(format!("res/cube-4d-{}.json", i)).unwrap();
+    for i in 0..900 {
+        let file = File::open(format!("res/cube-4d-{}.json", i + 1)).unwrap();
         let json: Value = serde_json::from_reader(file).unwrap();
         let bricks: Vec<Value> = json["bricks"].as_array().unwrap().to_vec();
         let map: HashMap<(usize, usize, usize), Vec<usize>> = bricks.iter().map(|ref brick| {
