@@ -84,6 +84,55 @@ pub fn plot(positions: &Cube, sizes: &Cube, brick: &[IntType; N], name: &String)
     figure.save(&format!("cubes/{}", name));
 }
 
+pub fn plot_multiple(packings: &[(Cube, Cube)], brick: &[IntType; N], name: &String) {
+    let dims = (0..N).collect::<Vec<usize>>();
+    let mut squares = Vec::new();
+    for (q, &(positions, sizes)) in packings.iter().enumerate() {
+        for dim in 0..1 {
+            for level in 0..N {
+                let mut rects = Vec::new();
+                for i in 0..N {
+                    for j in 0..N {
+                        let mut index = vec!(i, j);
+                        index.insert(dim, level);
+                        let square_dims = list_except(&dims, &[dim]);
+                        let position = positions[index[0]][index[1]][index[2]];
+                        let size = sizes[index[0]][index[1]][index[2]];
+                        let rectangle = plot::Rectangle {
+                            x: position[square_dims[0]], y: position[square_dims[1]],
+                            width: size[square_dims[0]], height: size[square_dims[1]]
+                        };
+                        rects.push(rectangle);
+                    }
+                }
+                let plot_name = format!("{}", q + 1);
+
+                let plot = plot::Plot {
+                    name: if level == 2 { Some(plot_name) } else { None },
+                    rectangles: rects
+                };
+                squares.push(plot);
+            }
+        }
+    }
+    let plots: Vec<plot::Plot> = (0..packings.len() * N).map(|i| {
+        let row = i / (7 * 3);
+        let column = i % 7;
+        let level = (i % (7 * 3)) / 7;
+        squares[(row * 7 + column) * 3 + level].clone()
+    }).collect();
+
+    let figure = plot::Figure {
+        name: None,
+        plots: plots,
+        brick: brick.to_vec(),
+        rows: N * N,
+        columns: packings.len() / N
+    };
+    figure.save(&format!("cubes/{}", name));
+    figure.save_tikz(&format!("cubes/{}", name));
+}
+
 pub fn symmetries(cube: &Cube) -> Vec<Cube> {
     let mut symmetries = Vec::new();
     let dims = (0..N).collect::<Vec<usize>>();

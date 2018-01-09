@@ -65,9 +65,7 @@ pub fn plot(positions: &Tesseract, sizes: &Tesseract, brick: &[IntType; N], name
                         rects.push(rectangle);
                     }
                 }
-                let square_name = list_except(&dim_labels, &[dim_labels[fixed[0]], dim_labels[fixed[1]]]).join("");
-                let plot_name = format!("{}-square at ({}, {})=({}, {})", square_name,
-                        dim_labels[fixed[0]], dim_labels[fixed[1]], level0, level1);
+                let plot_name = format!("${} = {}$ and ${} = {}$.", dim_labels[fixed[0]], level0 + 1, dim_labels[fixed[1]], level1 + 1);
                 let plot = plot::Plot {
                     name: Some(plot_name),
                     rectangles: rects

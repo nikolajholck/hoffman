@@ -21,6 +21,9 @@ fn main() {
     cube::drain_symmetries(&mut packings);
     println!("Total unique packings count: {:?}", packings.len());
 
+    let name = format!("3d-universal-packings");
+    cube::plot_multiple(&packings, &bricks[0], &name);
+
     for (i, &(positions, sizes)) in packings.iter().enumerate() {
         let name = format!("3D Packing {}", i);
         cube::plot(&positions, &sizes, &bricks[0], &name);

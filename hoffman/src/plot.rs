@@ -105,14 +105,41 @@ impl Figure {
     }
 
     fn to_tikz(&self) -> String {
-        if self.plots.len() != 1 {
-            println!("Warning: TikZ exported only one out of {} plots provided.", self.plots.len());
-        }
+        assert!(self.plots.len() == self.rows * self.columns, "Number of plots doesn't match number of rows and columns.");
+
         let mut colors: HashMap<IntType, usize> = HashMap::new();
         for (i, sum) in combinations(&self.brick, 2).iter().map(|li| li.iter().sum()).enumerate() {
             colors.insert(sum, i);
         }
-        self.plots[0].to_tikz(&colors)
+
+        let mut tikz = String::new();
+        let brick_sum: IntType = self.brick.iter().sum();
+        let figure_scale = 1.0 / (self.columns as f64) - 0.03;
+        let text_width = 12.0;
+        let tikz_scale = figure_scale * text_width / brick_sum as f64;
+
+        let rows = (0..self.rows).map(|row|
+            (0..self.columns).map(|column| {
+                let plot = &self.plots[row * self.columns + column];
+                let mut subfigure = String::new();
+                subfigure.push_str(&format!("    \\begin{{subfigure}}[b]{{{:.3}\\textwidth}}\n", figure_scale));
+                subfigure.push_str(&format!("        \\centering\n"));
+                subfigure.push_str(&format!("        \\begin{{tikzpicture}}[scale={:.3}]\n", tikz_scale));
+                subfigure.push_str(&format!("{}\n", plot.to_tikz(&colors)));
+                subfigure.push_str(&format!("        \\end{{tikzpicture}}\n"));
+                if let Some(name) = plot.name.clone() {
+                    subfigure.push_str(&format!("        \\caption*{{{}}}\n", name));
+                }
+                subfigure.push_str(&format!("    \\end{{subfigure}}"));
+                subfigure
+            }).collect::<Vec<String>>().join("\n    ~\n")
+        ).collect::<Vec<String>>().join("\n    \\par\\bigskip\n");
+
+        tikz.push_str(&format!("\\begin{{figure}}[ht]\n"));
+        tikz.push_str(&format!("    \\centering\n"));
+        tikz.push_str(&format!("{}\n", rows));
+        tikz.push_str(&format!("\\end{{figure}}\n"));
+        tikz
     }
 
     pub fn save(&self, filename: &String) {
