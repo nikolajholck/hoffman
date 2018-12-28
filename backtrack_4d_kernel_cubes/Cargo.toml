@@ -1,5 +1,5 @@
 [package]
-name = "backtrack_squares_4d_abstract"
+name = "backtrack_4d_kernel_cubes"
 version = "0.1.0"
 authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
 
