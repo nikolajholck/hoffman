@@ -25,7 +25,7 @@ fn main() {
         //println!("Brick: {:?}", brick);
         let mut tups: Vec<Vec<char>> = Vec::new();
         for i in 0..n + 1 {
-            let combs = combinations(&brick, i);
+            let combs = combinatorics::combinations(&brick, i);
             //println!("{}: {}", i, combs.len());
             tups.extend(combs);
         }

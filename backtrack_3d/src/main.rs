@@ -1,108 +1,47 @@
 extern crate hoffman;
 
-use hoffman::*;
-use hoffman::three::*;
 use std::time::Instant;
-use std::collections::HashMap;
-use std::iter::repeat;
+use hoffman::*;
+
+const N: usize = 3;
 
 fn main() {
-    let bricks = [
-        [4, 5, 6]
-    ];
-    println!("Bricks: {:?}", bricks);
+    let dimension_tuples = vec!(
+        vec!(4, 5, 6),
+        //vec!(6, 5, 4)
+    );
+    println!("Dimension Tuples: {:?}", dimension_tuples);
 
-    assert!(bricks.iter().all(|&brick| list_has_unique_sums(&brick)), "Brick doesn't have unique sums.");
+    assert!(dimension_tuples.iter().all(|dimension_tuple| utils::list_has_unique_sums(dimension_tuple)), "Dimension tuple does not have unique sums.");
 
-    println!("Will determine packings.");
+    println!("Will determine recipes.");
     let now = Instant::now();
-    let mut packings = backtrack_cubes(&bricks);
-    println!("Total packings count: {:?}", packings.len());
-    cube::drain_symmetries(&mut packings);
-    println!("Total unique packings count: {:?}", packings.len());
+    let recipes = backtrack_cubes(&dimension_tuples);
+    println!("Total recipes count: {:?}", recipes.len());
+    let recipes = Recipe::find_unique(recipes);
+    println!("Total unique recipes count: {:?}", recipes.len());
 
-    let name = format!("3d-universal-packings");
-    cube::plot_multiple(&packings, &bricks[0], &name);
+    let name = format!("3d-universal-recipes");
+    plot_multiple(&recipes, &dimension_tuples[0], &name);
 
-    for (i, &(positions, sizes)) in packings.iter().enumerate() {
+    for (i, recipe) in recipes.iter().enumerate() {
         let name = format!("3D Packing {}", i);
-        cube::plot(&positions, &sizes, &bricks[0], &name);
-        cube::export(&positions, &sizes, &bricks[0], &name);
+        plot::plot_3d(recipe, &dimension_tuples[0], &name);
+        recipe.save_json(&String::from("cubes"), &name);
     }
 
-    compute_distances(&packings);
-    check_duality(&packings, &bricks[0]);
+    compute_distances(&recipes);
+    check_duality(&recipes, &dimension_tuples);
 
-    println!("Time spent making packings: {:?} s", now.elapsed().as_secs());
+    println!("Time spent making recipes: {:?}", now.elapsed());
 }
 
-struct Packing {
-    positions: cube::Cube,
-    sizes: cube::Cube,
-    bricks: Vec<Point3D>,
-    type_counts: Vec<Vec<HashMap<IntType, usize>>>,
-}
+fn backtrack_cubes(dimension_tuples: &Vec<DimensionTuple>) -> Vec<Recipe> {
+    let mut recipe_builder = RecipeBuilder::new(N, N, dimension_tuples.clone());
 
-impl Packing {
-    fn new(brick: &Brick) -> Packing {
-        Packing {
-            positions: [[[Point3D::ZERO; N]; N]; N],
-            sizes: [[[Point3D::ZERO; N]; N]; N],
-            bricks: permutations(brick, N).iter().map(|permutation| {
-                Point3D { x: permutation[0], y: permutation[1], z: permutation[2] }
-            }).collect(),
-            type_counts: repeat(
-                repeat(HashMap::with_capacity(N)).take(N).collect() // For each level.
-            ).take(N).collect() // For each dimension.
-        }
-    }
-
-    fn place(&mut self, coord: &cube::Coord, brick_index: usize) {
-        let (x, y, z) = (coord[0], coord[1], coord[2]);
-        let brick = self.bricks[brick_index];
-        self.increment_type_count(&brick, &coord);
-        self.sizes[x][y][z] = brick;
-        cube::position_brick(&mut self.positions, &self.sizes, &coord);
-    }
-
-    fn remove(&mut self, coord: &cube::Coord) {
-        let (x, y, z) = (coord[0], coord[1], coord[2]);
-        let brick = self.sizes[x][y][z];
-        self.decrement_type_count(&brick, &coord);
-        self.sizes[x][y][z] = Point3D::ZERO; // Remove brick from sizes.
-        self.positions[x][y][z] = Point3D::ZERO; // Remove brick from positions.
-    }
-
-    fn is_valid(&self, coord: &cube::Coord) -> bool {
-        cube::is_brick_valid(&self.positions, &self.sizes, &coord)
-        && self.validate_type_count(&coord)
-        && !cube::makes_sharp_corner(&self.positions, &self.sizes, &coord)
-    }
-
-    fn validate_type_count(&self, coord: &cube::Coord) -> bool {
-        coord.iter().enumerate().all(|(i, &v)| self.type_counts[i][v].values().max().unwrap() <= &N)
-    }
-
-    fn decrement_type_count(&mut self, brick: &Point3D, coord: &cube::Coord) {
-        for i in 0..N {
-            let count = self.type_counts[i][coord[i]].entry(brick[i]).or_insert(0);
-            *count -= 1;
-        }
-    }
-
-    fn increment_type_count(&mut self, brick: &Point3D, coord: &cube::Coord) {
-        for i in 0..N {
-            let count = self.type_counts[i][coord[i]].entry(brick[i]).or_insert(0);
-            *count += 1;
-        }
-    }
-}
-
-fn backtrack_cubes(bricks: &[Brick]) -> Vec<(cube::Cube, cube::Cube)> {
-    let mut packings: Vec<Packing> = bricks.iter().map(|brick| Packing::new(brick)).collect();
-    let coords = cube::make_coords();
+    let coords = utils::make_coords(N, N);
     println!("Coords: {:?}", coords.len());
-    let mut cubes = Vec::new();
+    let mut recipes = Vec::new();
 
     let mut records = [[[0; N]; N]; N];
     let mut i: usize = 0;
@@ -111,24 +50,25 @@ fn backtrack_cubes(bricks: &[Brick]) -> Vec<(cube::Cube, cube::Cube)> {
 
     let max_tries = N * (N - 1) * (N - 2);
 
+    let indices: Vec<usize> = (0..N).collect();
+    let perms = combinatorics::permutations(&indices.as_slice(), N);
+
     loop {
         iteration += 1;
         if iteration % 100_000 == 0 {
             println!("Iteration {:?}, i: {:?}, successes: {:?}", iteration, i, successes);
         }
 
-        let coord = coords[i];
+        let coord = &coords[i];
         let (x, y, z) = (coord[0], coord[1], coord[2]);
 
         if records[x][y][z] < max_tries { // We'll try placing a brick.
-            for packing in &mut packings {
-                packing.place(&coord, records[x][y][z]);
-            }
+            recipe_builder.insert(coord, &perms[records[x][y][z]]);
             records[x][y][z] += 1; // Register that this rotation has been tried.
 
-            if packings.iter().all(|packing| packing.is_valid(&coord)) {
+            if recipe_builder.is_valid(coord) {
                 if i == N * N * N - 1 { // We have successfully placed all bricks.
-                    cubes.push((packings[0].positions, packings[0].sizes));
+                    recipes.push(recipe_builder.get_recipe().clone());
                     if successes == 0 {
                         println!("Iterations: {:?}", iteration);
                         println!("Records: {:?}", records);
@@ -148,44 +88,36 @@ fn backtrack_cubes(bricks: &[Brick]) -> Vec<(cube::Cube, cube::Cube)> {
             records[x][y][z] = 0; // Reset tries.
             i -= 1; // Backtrack.
         }
-        for packing in &mut packings {
-            packing.remove(&coords[i]);
-        }
+        recipe_builder.remove(&coords[i]);
     }
     println!("Total iterations {:?}", iteration);
-    cubes
+    recipes
 }
 
-fn compute_distances(packings: &Vec<(cube::Cube, cube::Cube)>) {
-    for (i, &(_, a)) in packings.iter().enumerate() {
+fn compute_distances(recipes: &Vec<Recipe>) {
+    for (i, a) in recipes.iter().enumerate() {
         print!("Packing {:2}: ", i);
-        let distances = packings.iter().enumerate().map(|(_, &(_, b))| compute_distance(&a, &b)).collect::<Vec<_>>();
-        let closest = packings.iter().enumerate().filter(|&(j, _)| i != j).map(|(_, &(_, b))| compute_distance(&a, &b)).min().unwrap();
-        let farthest = packings.iter().enumerate().filter(|&(j, _)| i != j).map(|(_, &(_, b))| compute_distance(&a, &b)).max().unwrap();
+        let all_distances: Vec<_> = recipes.iter().map(|b| a.distance_to(b) ).collect();
+        let mut other_distances = all_distances.clone();
+        other_distances.remove(i);
+        let closest = other_distances.iter().min().unwrap();
+        let farthest = other_distances.iter().max().unwrap();
         print!("Closest: {:2}, Farthest: {:2} ", closest, farthest);
-        for (k, d) in distances.iter().enumerate().filter(|&(_, &d)| d == closest) {
+        for (k, d) in all_distances.iter().enumerate().filter(|(_, d)| *d == closest) {
             print!("({:2}, {:2}) ", k, d);
         }
         println!();
     }
 }
 
-fn compute_distance(a: &cube::Cube, b: &cube::Cube) -> usize {
-    let coords = cube::make_coords();
-    cube::symmetries(&b).iter().map(|&sizes| {
-        coords.iter().filter(|&coord| {
-            a[coord[0]][coord[1]][coord[2]] != sizes[coord[0]][coord[1]][coord[2]]
-        }).count()
-    }).min().unwrap()
-}
-
-fn check_duality(packings: &Vec<(cube::Cube, cube::Cube)>, brick: &Brick) {
-    let permutations = vec!([2, 1, 0]);//permutations(&(0..N).collect::<Vec<_>>(), N);
+fn check_duality(recipes: &Vec<Recipe>, dimension_tuples: &Vec<DimensionTuple>) {
+    let permutations = vec!(vec!(2, 1, 0));
+    //let permutations = combinatorics::permutations(&(0..3).collect::<Vec<_>>(), 3);
     for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
-        let res = packings.iter().enumerate().map(|(i, &(_positions, sizes))| {
-            if let Some(_) = apply_permutation(&sizes, permutation, brick) {
-                format!("{}", i)
+        let res = recipes.iter().enumerate().map(|(i, recipe)| {
+            if check_permutation(recipe, permutation, dimension_tuples) {
+                format!("{:?}", i)
             } else {
                 format!("")
             }
@@ -194,26 +126,43 @@ fn check_duality(packings: &Vec<(cube::Cube, cube::Cube)>, brick: &Brick) {
     }
 }
 
-fn apply_permutation(sizes: &cube::Cube, permutation: &[usize], brick: &Brick) -> Option<(cube::Cube, cube::Cube)> {
-    let mut map = HashMap::new();
-    for (i, v) in brick.iter().enumerate() {
-        map.insert(v, i);
-    }
-    let mut perm_sizes = [[[Point3D::ZERO; N]; N]; N];
-    let mut perm_positions = [[[Point3D::ZERO; N]; N]; N];
-    let coords = cube::make_coords();
-    for coord in &coords {
-        let (x, y, z) = (coord[0], coord[1], coord[2]);
-        let size = sizes[x][y][z];
-        let mut perm_size = Point3D::ZERO;
-        for i in 0..N {
-            perm_size[i] = brick[permutation[map[&size[i]]]];
+fn check_permutation(recipe: &Recipe, permutation: &Orientation, dimension_tuples: &Vec<DimensionTuple>) -> bool {
+    let mut recipe_builder = RecipeBuilder::new(N, N, dimension_tuples.clone());
+    recipe_builder.produce(&recipe.pre_permute(permutation));
+    recipe_builder.validate()
+}
+
+pub fn plot_multiple(recipes: &Vec<Recipe>, dimension_tuple: &DimensionTuple, name: &String) {
+    let mut squares = Vec::new();
+    for (q, recipe) in recipes.iter().enumerate() {
+        let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
+        recipe_builder.produce(recipe);
+        for dim in 0..1 {
+            for level in 0..N {
+                let rects = recipe_builder.get_rectangles_at(vec!((dim, level)));
+                let plot_name = format!("{}", q + 1);
+                let plot = plot::Plot {
+                    name: if level == 2 { Some(plot_name) } else { None },
+                    rectangles: rects
+                };
+                squares.push(plot);
+            }
         }
-        perm_sizes[x][y][z] = perm_size;
-        cube::position_brick(&mut perm_positions, &perm_sizes, &coord);
-        if !cube::is_brick_valid(&perm_positions, &perm_sizes, &coord) {
-            return None;
-        }
     }
-    Some((perm_positions, perm_sizes))
+    let plots: Vec<plot::Plot> = (0..recipes.len() * N).map(|i| {
+        let row = i / (7 * 3);
+        let column = i % 7;
+        let level = (i % (7 * 3)) / 7;
+        squares[(row * 7 + column) * 3 + level].clone()
+    }).collect();
+
+    let figure = plot::Figure {
+        name: None,
+        plots: plots,
+        dimension_tuple: dimension_tuple.to_vec(),
+        rows: N * N,
+        columns: recipes.len() / N
+    };
+    figure.save_svg(&String::from("cubes"), name);
+    figure.save_tikz(&String::from("cubes"), name);
 }

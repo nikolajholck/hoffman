@@ -1,4 +1,6 @@
-use super::*;
+use utils::*;
+use combinatorics::*;
+use interval::*;
 
 #[test]
 fn interval_is_zero() {
@@ -32,15 +34,6 @@ fn interval_is_degenerate() {
     assert!(z.is_degenerate());
     assert!(!z1.is_degenerate());
     assert!(z2.is_degenerate());
-}
-
-#[test]
-fn point2d_make_intervals() {
-    let a = Point2D { x: 2, y: 3 };
-    let b = Point2D { x: 5, y: 8 };
-    let intervals = [Interval { begin: 2, end: 2 + 5 }, Interval { begin: 3, end: 3 + 8 }];
-    assert_eq!(Point2D::make_intervals(&a, &b), intervals);
-    assert_ne!(Point2D::make_intervals(&b, &a), intervals);
 }
 
 #[test]

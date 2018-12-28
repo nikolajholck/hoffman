@@ -1,21 +1,27 @@
 extern crate hoffman;
 
 use hoffman::*;
-use hoffman::four::*;
 
 use std::time::Instant;
 use std::collections::HashMap;
+use std::iter::repeat;
 
-fn projection(coord: &tesseract::Coord, projection: &[usize]) -> [usize; 2] {
-    assert!(coord.len() >= projection.len(), "illegal projection");
-    let mut result = [0; 2];
-    for i in 0..2 {
-        result[i] = coord[projection[i]];
-    }
-    result
+const N: usize = 4;
+
+type Shape = Vec<usize>;
+
+pub fn make_coords(shape: &Shape) -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
+        (0..size).collect()
+    }).collect();
+    combinatorics::product(&axes)
 }
 
-fn permute_at<T: Copy>(coord: &[T; N], permutation: &[usize], locations: &[usize]) -> [T; N] {
+fn projection(coord: &Coord, projection: &Vec<usize>) -> Vec<usize> {
+    projection.iter().map(|&i| coord[i]).collect()
+}
+
+fn permute_at(coord: &Coord, permutation: &Orientation, locations: &Vec<usize>) -> Coord {
     assert!(permutation.len() == locations.len(), "illegal sub-permutation");
     let mut result = coord.clone();
     for (i, &p) in permutation.iter().enumerate() {
@@ -26,46 +32,46 @@ fn permute_at<T: Copy>(coord: &[T; N], permutation: &[usize], locations: &[usize
 
 #[derive(Clone)]
 enum Container {
-    One(Brick),
-    Many(HashMap<tesseract::Coord, Group>)
+    One(Orientation),
+    Many(HashMap<Coord, Group>)
 }
 
 #[derive(Clone)]
 struct Group {
     contents: Container,
-    shape: tesseract::Shape
+    shape: Shape
 }
 
 impl Group {
 
-    fn permute(self, dimensions: &[usize], permutation: &[usize], rotate: bool) -> Group {
+    fn permute(self, dimensions: &Vec<usize>, permutation: &Orientation, rotate: bool) -> Group {
         match self.contents {
-            Container::One(brick) => Group {
-                contents: Container::One(permute_at(&brick, &permutation, &dimensions)),
+            Container::One(orientation) => Group {
+                contents: Container::One(permute_at(&orientation, permutation, dimensions)),
                 shape: self.shape
             },
             Container::Many(groups) => {
-                let mut new_groups: HashMap<tesseract::Coord, Group> = HashMap::new();
+                let mut new_groups: HashMap<Coord, Group> = HashMap::new();
                 for (coord, group) in groups.into_iter() {
-                    let new_group = group.permute(&dimensions, &permutation, rotate);
-                    let new_coord = if rotate { permute_at(&coord, &permutation, &dimensions) } else { coord };
+                    let new_group = group.permute(dimensions, permutation, rotate);
+                    let new_coord = if rotate { permute_at(&coord, permutation, dimensions) } else { coord };
                     new_groups.insert(new_coord, new_group);
                 }
                 return Group {
                     contents: Container::Many(new_groups),
-                    shape: permute_at(&self.shape, &permutation, &dimensions)
+                    shape: permute_at(&self.shape, permutation, dimensions)
                 }
             }
         }
     }
 
-    fn solve(self, solution: &HashMap<[usize; 2], [usize; 2]>, dimensions: &[usize], rotate: bool) -> Group {
+    fn solve(self, solution: &Recipe, dimensions: &Vec<usize>, rotate: bool) -> Group {
         if let Container::Many(groups) = self.contents {
-            let mut new_groups: HashMap<tesseract::Coord, Group> = HashMap::new();
+            let mut new_groups: HashMap<Coord, Group> = HashMap::new();
             for (coord, group) in groups.into_iter() {
                 let solution_coord = projection(&coord, dimensions);
-                let permutation = solution[&solution_coord];
-                let permuted_group = group.permute(dimensions, &permutation, rotate);
+                let permutation = &solution.map.get(&solution_coord).unwrap();
+                let permuted_group = group.permute(dimensions, permutation, rotate);
                 new_groups.insert(coord, permuted_group);
             }
             return Group {
@@ -77,99 +83,90 @@ impl Group {
         }
     }
 
-    fn get_brick(&self, coord: &tesseract::Coord, brick_counts: &tesseract::Shape) -> Point4D {
-        match self.contents {
-            Container::One(brick) => Point4D { x: brick[0], y: brick[1], z: brick[2], w: brick[3] },
+    fn get_brick(&self, coord: &Coord, brick_counts: &Vec<usize>) -> Orientation {
+        match &self.contents {
+            Container::One(brick) => brick.clone(),
             Container::Many(ref groups) => {
-                let mut local_coord = [0; N];
-                let mut recursive_coord = [0; N];
-                let mut recursive_brick_counts = [0; N];
-                for i in 0..N {
-                    recursive_brick_counts[i] = brick_counts[i] / self.shape[i];
-                    local_coord[i] = coord[i] / recursive_brick_counts[i];
-                    recursive_coord[i] = coord[i] % recursive_brick_counts[i];
-                }
+                let recursive_brick_counts: Vec<usize> = (0..N).map(|i| brick_counts[i] / self.shape[i] ).collect();
+                let local_coord: Coord = (0..N).map(|i| coord[i] / recursive_brick_counts[i] ).collect();
+                let recursive_coord: Coord = (0..N).map(|i| coord[i] % recursive_brick_counts[i] ).collect();
                 groups[&local_coord].get_brick(&recursive_coord, &recursive_brick_counts)
             }
         }
     }
 
-    fn one(brick: Brick) -> Group {
+    fn one(orientation: Orientation) -> Group {
         Group {
-            contents: Container::One(brick),
-            shape: [1; N]
+            contents: Container::One(orientation),
+            shape: repeat(1).take(N).collect()
         }
     }
 
-    fn many(contents: Vec<Group>, shape: tesseract::Shape) -> Group {
-        let mut new_contents: HashMap<tesseract::Coord, Group> = HashMap::new();
-        for (&coord, group) in tesseract::make_coords(shape).iter().zip(contents.into_iter()) {
-            new_contents.insert(coord, group);
-        }
+    fn many(contents: Vec<Group>, shape: &Shape) -> Group {
+        let new_contents: HashMap<Coord, Group> = make_coords(shape).iter().zip(contents.iter()).map(|(coord, group)| {
+            (coord.clone(), group.clone())
+        }).collect();
         Group {
             contents: Container::Many(new_contents),
-            shape: shape
+            shape: shape.clone()
         }
     }
-
 }
 
 fn main() {
     let now = Instant::now();
 
-    let brick = [8, 9, 10, 12]; // Wide
-    //let brick = [10, 12, 13, 14]; // Narrow
+    let dimension_tuple = vec!(8, 9, 10, 12); // Wide
+    //let dimension_tuple = vec!(10, 12, 13, 14); // Narrow
 
-    let solution2d_one: HashMap<[usize; 2], [usize; 2]> =
-    [([0, 0], [0, 1]),
-     ([0, 1], [1, 0]),
-     ([1, 0], [1, 0]),
-     ([1, 1], [0, 1])]
-     .iter().cloned().collect();
-     let solution2d_two: HashMap<[usize; 2], [usize; 2]> =
-     [([0, 0], [1, 0]),
-      ([0, 1], [0, 1]),
-      ([1, 0], [0, 1]),
-      ([1, 1], [1, 0])]
-      .iter().cloned().collect();
+    let solution2d_one = Recipe {
+        n: 2,
+        m: 2,
+        map: vec!(
+            (vec!(0, 0), vec!(0, 1)),
+            (vec!(0, 1), vec!(1, 0)),
+            (vec!(1, 0), vec!(1, 0)),
+            (vec!(1, 1), vec!(0, 1))
+        ).into_iter().collect()
+    };
+    let solution2d_two = solution2d_one.pre_permute(&vec!(1, 0));
+
     let solutions = vec!(solution2d_one, solution2d_two);
 
-    let solution_options = product(&[solutions.clone(), solutions.clone()]);
+    let solution_options = combinatorics::product(&repeat(solutions).take(2).collect::<Vec<_>>());
     println!("Solution options: {:?}", solution_options.len());
 
-    let brick_options: Vec<Brick> = permutations(&brick, N).iter().map(|list| {
-        let mut new_brick = [0; N];
-        for i in 0..N {
-            new_brick[i] = list[i];
-        }
-        new_brick
-    }).collect();
+    let indices: Vec<usize> = (0..N).collect();
+    let perms = combinatorics::permutations(&indices.as_slice(), N);
 
-    let mut packings: Vec<(tesseract::Tesseract, tesseract::Tesseract)> = Vec::new();
+    let mut recipes: Vec<Recipe> = Vec::new();
 
     for solutions in &solution_options {
-        for current_brick in &brick_options {
-            let group = combine(current_brick, &solutions[0], &solutions[1]);
-            packings.push(convert_to_packing(&group));
+        for perm in &perms {
+            let group = combine(perm, &solutions[0], &solutions[1]);
+            recipes.push(convert_to_recipe(&group));
         }
     }
 
-    for (i, &(positions, sizes)) in packings.iter().enumerate() {
+    for (i, recipe) in recipes.iter().enumerate() {
         let name = format!("4D Combined Packing {:?}", i);
-        tesseract::plot(&positions, &sizes, &brick, &name);
-        tesseract::export(&positions, &sizes, &brick, &name);
+        plot::plot_4d(recipe, &dimension_tuple, &name);
+        recipe.save_json(&String::from("tesseracts"), &name);
     }
-    println!("Total number of permuted packings: {:?}", packings.len());
+    println!("Total number of permuted recipes: {:?}", recipes.len());
 
-    make_statistics(&packings, &brick);
-    check_duality(&packings, &brick);
+    make_statistics(&recipes);
+    check_duality(&recipes, &dimension_tuple);
 
-    println!("Time spent making packing: {:?} s", now.elapsed().as_secs());
+    println!("Time spent making recipe: {:?} s", now.elapsed().as_secs());
 }
 
-fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution_b: &HashMap<[usize; 2], [usize; 2]>) -> Group {
-    let (a, b) = (2, 2);
-    let ab = 4;
+fn combine(brick: &Orientation, solution_a: &Recipe, solution_b: &Recipe) -> Group {
+    assert!(solution_a.n == solution_a.m);
+    assert!(solution_b.n == solution_b.m);
+
+    let (a, b) = (solution_a.n, solution_b.n);
+    let ab = a * b;
     assert!(ab == N, "invalid combine dimensions.");
 
     // Generate bricks.
@@ -179,7 +176,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
     for column in 0..a { // Solve columns
         //println!("Container count at column {} is {}", column, groups.len());
         let selected_dimensions: Vec<usize> = (0..b).map(|k| column + k * b).collect();
-        let mut shape = [1; N];
+        let mut shape: Shape = repeat(1).take(N).collect();
         for &dim in &selected_dimensions {
             shape[dim] = a;
         }
@@ -187,7 +184,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
 
         let mut new_groups: Vec<Group> = Vec::new();
         for contents in groups.chunks(group_size) {
-            let new_group = Group::many(contents.to_vec(), shape).solve(&solution_a, &selected_dimensions, false);
+            let new_group = Group::many(contents.to_vec(), &shape).solve(solution_a, &selected_dimensions, false);
             new_groups.push(new_group);
         }
         groups = new_groups;
@@ -199,8 +196,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
         //println!("Box count at row {} is, {}", row, groups.len());
 
         let selected_dimensions: Vec<usize> = (0..a).map(|k| row * b + k).collect();
-
-        let mut shape = [1; N];
+        let mut shape: Shape = repeat(1).take(N).collect();
         for &dim in &selected_dimensions {
             shape[dim] = b;
         }
@@ -208,7 +204,7 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
 
         let mut new_groups: Vec<Group> = Vec::new();
         for contents in groups.chunks(group_size) {
-            let new_group = Group::many(contents.to_vec(), shape).solve(&solution_b, &selected_dimensions, true);
+            let new_group = Group::many(contents.to_vec(), &shape).solve(solution_b, &selected_dimensions, true);
             new_groups.push(new_group);
         }
         groups = new_groups;
@@ -219,86 +215,60 @@ fn combine(brick: &Brick, solution_a: &HashMap<[usize; 2], [usize; 2]>, solution
     groups.pop().unwrap()
 }
 
-fn convert_to_packing(group: &Group) -> (tesseract::Tesseract, tesseract::Tesseract) {
-    let coords = tesseract::make_coords([N; N]);
-
-    let mut sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
-    let mut positions = [[[[Point4D::ZERO; N]; N]; N]; N];
-
-    for coord in coords.iter() {
-        let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
-        sizes[x][y][z][w] = group.get_brick(&coord, &[N; N]);
-        tesseract::position_brick(&mut positions, &sizes, &coord);
+fn convert_to_recipe(group: &Group) -> Recipe {
+    let coords = utils::make_coords(N, N);
+    let recipe_shape: Shape = repeat(N).take(N).collect();
+    Recipe {
+        n: N,
+        m: N,
+        map: coords.iter().map(|coord| {
+            (coord.clone(), group.get_brick(coord, &recipe_shape))
+        }).collect()
     }
-    for coord in coords.iter() {
-        assert!(tesseract::is_brick_valid(&positions, &sizes, &coord), "Error: Something is wrong with the packing at {:?}", coord);
-    }
-    (positions, sizes)
 }
 
-fn check_duality(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick) {
+fn check_duality(recipes: &Vec<Recipe>, dimension_tuple: &DimensionTuple) {
     let dims = (0..N).collect::<Vec<_>>();
-    let permutations = permutations(&dims, N);
+    let permutations = combinatorics::permutations(&dims, N);
     for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
-        let res: usize = packings.iter().enumerate().map(|(_i, &(_positions, sizes))| {
-            match apply_permutation(&sizes, &permutation, brick) {
-                Some(_) => 1,
-                None    => 0
-            }
-        }).sum();
+        let res: usize = recipes.iter().filter(|recipe| {
+            check_permutation(recipe, permutation, dimension_tuple)
+        }).count();
         println!("Okay count: {}", res);
     }
 }
 
-fn apply_permutation(sizes: &tesseract::Tesseract, permutation: &[usize], brick: &Brick) -> Option<(tesseract::Tesseract, tesseract::Tesseract)> {
-    let mut map = HashMap::new();
-    for (i, v) in brick.iter().enumerate() {
-        map.insert(v, i);
-    }
-    let mut perm_sizes = [[[[Point4D::ZERO; N]; N]; N]; N];
-    let mut perm_positions = [[[[Point4D::ZERO; N]; N]; N]; N];
-    let coords = tesseract::make_coords([N; N]);
-    for coord in &coords {
-        let (x, y, z, w) = (coord[0], coord[1], coord[2], coord[3]);
-        let size = sizes[x][y][z][w];
-        let mut perm_size = Point4D::ZERO;
-        for i in 0..N {
-            perm_size[i] = brick[permutation[map[&size[i]]]];
-        }
-        perm_sizes[x][y][z][w] = perm_size;
-        tesseract::position_brick(&mut perm_positions, &perm_sizes, &coord);
-        if !tesseract::is_brick_valid(&perm_positions, &perm_sizes, &coord) {
-            return None;
-        }
-    }
-    Some((perm_positions, perm_sizes))
+fn check_permutation(recipe: &Recipe, permutation: &Orientation, dimension_tuple: &DimensionTuple) -> bool {
+    let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
+    recipe_builder.produce(&recipe.pre_permute(permutation));
+    recipe_builder.validate()
 }
 
-fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>, brick: &Brick) {
+fn make_statistics(recipes: &Vec<Recipe>) {
     let dims = (0..N).collect::<Vec<_>>();
-    for &(_positions, sizes) in packings.iter() {
+    for recipe in recipes {
         for dim in 0..N {
             for level in 0..N {
                 let mut template_coord = [0; N];
                 template_coord[dim] = level;
-                let other_dims = list_except(&dims, &[dim]);
+                let other_dims = utils::list_except(&dims, &[dim]);
                 let mut axes: Vec<Vec<usize>> = [N; N-1].iter().map(|&size| {
                     (0..size).collect()
                 }).collect();
                 axes.insert(dim, vec!(level));
-                let coords = product(&axes);
+                let coords = combinatorics::product(&axes);
                 let mut type_map = HashMap::with_capacity(N);
-                let mut orientations_map: HashMap<IntType, HashMap<usize, usize>> = HashMap::with_capacity(N);
+                let mut orientations_map: HashMap<usize, HashMap<usize, usize>> = HashMap::with_capacity(N);
                 for coord in &coords {
-                    let size = sizes[coord[0]][coord[1]][coord[2]][coord[3]];
-                    let type_key = size[dim];
+                    let perm = recipe.map.get(coord).unwrap();
+                    let type_key = perm[dim];
                     let count = type_map.entry(type_key).or_insert(0);
                     *count += 1;
 
                     let orientation_map = orientations_map.entry(type_key).or_insert(HashMap::new());
-                    let orientation = [size[other_dims[0]], size[other_dims[1]], size[other_dims[2]]];
-                    let orientations = permutations(&list_except(brick, &[type_key]), N-1);
+                    let orientation = [perm[other_dims[0]], perm[other_dims[1]], perm[other_dims[2]]];
+                    let orientations = combinatorics::permutations(&utils::list_except(&dims, &[type_key]), N - 1);
                     let mut idx: Option<_> = None;
                     for (i, ori) in orientations.iter().enumerate() {
                         if ori[..N-1].iter().zip(orientation.iter()).all(|(a, b)| a == b) {
@@ -306,7 +276,7 @@ fn make_statistics(packings: &Vec<(tesseract::Tesseract, tesseract::Tesseract)>,
                             break;
                         }
                     }
-                    let idx = idx.expect(&format!("Could not find perm type {:?}, {:?}, {:?}", orientation, &list_except(brick, &[type_key]), orientations));
+                    let idx = idx.expect(&format!("Could not find perm type {:?}, {:?}, {:?}", orientation, &utils::list_except(&dims, &[type_key]), orientations));
                     let orientation_count = orientation_map.entry(idx).or_insert(0);
                     *orientation_count += 1;
                 }

@@ -9,7 +9,7 @@ pub fn make_coords(shape: Coord) -> Vec<Coord> {
     let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
         (1..size + 1).collect()
     }).collect();
-    product(&axes)
+    combinatorics::product(&axes)
 }
 
 fn main() {

@@ -1,10 +1,8 @@
-use std::error::Error;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
 use std::collections::HashMap;
+use std::error::Error;
 
 use super::*;
+use combinatorics::*;
 
 const COLORS: &'static [&'static str] = &[
     "rgb(236, 31, 38)",  // Red
@@ -42,7 +40,7 @@ pub struct Plot {
 pub struct Figure {
     pub name: Option<String>,
     pub plots: Vec<Plot>,
-    pub brick: Vec<IntType>,
+    pub dimension_tuple: Vec<IntType>,
     pub rows: usize,
     pub columns: usize
 }
@@ -72,18 +70,32 @@ impl Plot {
 }
 
 impl Figure {
+    pub fn save_svg(&self, directory: &String, file_name: &String) {
+        match utils::write_file(&self.to_svg(), &format!("plots/{}", directory), &format!("{}.svg", file_name)) {
+            Err(why) => panic!("Error saving svg: {}", why.description()),
+            Ok(_) => return
+        }
+    }
+
+    pub fn save_tikz(&self, directory: &String, file_name: &String) {
+        match utils::write_file(&self.to_tikz(), &format!("plots/{}", directory), &format!("{}.tikz", file_name)) {
+            Err(why) => panic!("Error saving tikz: {}", why.description()),
+            Ok(_) => return
+        }
+    }
+
     fn to_svg(&self) -> String {
         assert!(self.plots.len() == self.rows * self.columns, "Number of plots doesn't match number of rows and columns.");
 
         let mut colors: HashMap<IntType, usize> = HashMap::new();
-        for (i, sum) in combinations(&self.brick, 2).iter().map(|li| li.iter().sum()).enumerate() {
+        for (i, sum) in combinations(&self.dimension_tuple, 2).iter().map(|li| li.iter().sum()).enumerate() {
             colors.insert(sum, i);
         }
 
         let mut svg = String::new();
-        let brick_sum: IntType = self.brick.iter().sum();
+        let dimension_tuple_sum = self.dimension_tuple.iter().sum::<IntType>() as f64;
         let plot_size = (WIDTH - MARGIN * ((self.columns + 1) as f64)) / self.columns as f64;
-        let plot_scale = plot_size / brick_sum as f64;
+        let plot_scale = plot_size / dimension_tuple_sum;
         let figure_height = MARGIN * (self.rows + 1) as f64 + plot_size * self.rows as f64;
 
         svg.push_str(&format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\">\n", WIDTH, figure_height, WIDTH, figure_height));
@@ -93,11 +105,11 @@ impl Figure {
                 let y = (MARGIN + plot_size) * row as f64 + MARGIN;
                 let plot = &self.plots[row * self.columns + column];
                 let name = plot.name.clone().unwrap_or(String::from(""));
-                svg.push_str(&format!("<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-size=\"16\">{}</text>", x + plot_size * 0.5, y - 10.0, name));
                 svg.push_str(&format!("<g transform=\"matrix({} 0 0 {} {} {})\">\n", plot_scale, plot_scale, x, y));
-                svg.push_str(&format!("<rect x=\"0\" y=\"0\" width=\"{}\" height=\"{}\" style=\"fill:none;stroke:#000;stroke-width:1;\" vector-effect=\"non-scaling-stroke\" />", brick_sum, brick_sum));
+                svg.push_str(&format!("<rect x=\"0\" y=\"0\" width=\"{}\" height=\"{}\" style=\"fill:none;stroke:#000;stroke-width:1;\" vector-effect=\"non-scaling-stroke\" />", dimension_tuple_sum, dimension_tuple_sum));
                 svg.push_str(&format!("{}\n", plot.to_svg(&colors)));
                 svg.push_str(&format!("</g>\n"));
+                svg.push_str(&format!("<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-size=\"16\">{}</text>", x + plot_size * 0.5, y + plot_size + 18.0, name));
             }
         }
         svg.push_str("</svg>");
@@ -108,15 +120,15 @@ impl Figure {
         assert!(self.plots.len() == self.rows * self.columns, "Number of plots doesn't match number of rows and columns.");
 
         let mut colors: HashMap<IntType, usize> = HashMap::new();
-        for (i, sum) in combinations(&self.brick, 2).iter().map(|li| li.iter().sum()).enumerate() {
+        for (i, sum) in combinations(&self.dimension_tuple, 2).iter().map(|li| li.iter().sum()).enumerate() {
             colors.insert(sum, i);
         }
 
         let mut tikz = String::new();
-        let brick_sum: IntType = self.brick.iter().sum();
+        let dimension_tuple_sum: IntType = self.dimension_tuple.iter().sum();
         let figure_scale = 1.0 / (self.columns as f64) - 0.03;
         let text_width = 12.0;
-        let tikz_scale = figure_scale * text_width / brick_sum as f64;
+        let tikz_scale = figure_scale * text_width / dimension_tuple_sum as f64;
 
         let rows = (0..self.rows).map(|row|
             (0..self.columns).map(|column| {
@@ -141,50 +153,110 @@ impl Figure {
         tikz.push_str(&format!("\\end{{figure}}\n"));
         tikz
     }
+}
 
-    pub fn save(&self, filename: &String) {
+pub fn plot_3d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
+    const N: usize = 3;
+    let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
+    recipe_builder.produce(recipe);
 
-        // Create a path to the desired file.
-        let path_str = format!("plots/{}.svg", filename.clone());
-        let path = Path::new(&path_str);
-        let display = path.display();
-
-        // Open file in write-only mode, returns `io::Result<File>`.
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why.description()),
-            Ok(file) => file
-        };
-
-        // Generate SVG.
-        let svg = self.to_svg();
-
-        // Write string to `file`, returns `io::Result<()>`.
-        match file.write_all(svg.as_bytes()) {
-            Err(why) => panic!("couldn't write to {}: {}", display, why.description()),
-            Ok(_) => return
+    let dim_labels = ["x", "y", "z"];
+    let mut plots = Vec::new();
+    for dim in 0..N {
+        for level in 0..N {
+            let rects = recipe_builder.get_rectangles_at(vec!((dim, level)));
+            let square_name = utils::list_except(&dim_labels, &[dim_labels[dim]]).join("");
+            let plot_name = format!("{}-square at {}={}", square_name, dim_labels[dim], level);
+            let plot = plot::Plot {
+                name: Some(plot_name),
+                rectangles: rects
+            };
+            plots.push(plot);
         }
     }
+    let figure = plot::Figure {
+        name: None,
+        plots: plots,
+        dimension_tuple: dimension_tuple.clone(),
+        rows: N,
+        columns: N
+    };
+    figure.save_svg(&String::from("cubes"), name);
+    figure.save_tikz(&String::from("cubes"), name);
+}
 
-    pub fn save_tikz(&self, filename: &String) {
+pub fn plot_4d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
+    const N: usize = 4;
+    const M: usize = 4;
+    let mut recipe_builder = RecipeBuilder::new(N, M, vec!(dimension_tuple.clone()));
+    recipe_builder.produce(recipe);
 
-        // Create a path to the desired file.
-        let path_str = format!("plots/{}.tikz", filename.clone());
-        let path = Path::new(&path_str);
-        let display = path.display();
-
-        // Open file in write-only mode, returns `io::Result<File>`.
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why.description()),
-            Ok(file) => file
-        };
-
-        // Generate TIKZ.
-        let tikz = self.to_tikz();
-
-        // Write string to `file`, returns `io::Result<()>`.
-        match file.write_all(tikz.as_bytes()) {
-            Err(why) => panic!("couldn't write to {}: {}", display, why.description()),
-            Ok(_) => return
+    let dim_labels = ["x", "y", "z", "w"];
+    let dims: Vec<usize> = (0..M).collect();
+    let fixed_dims = combinatorics::combinations(&dims, M - 2);
+    let mut plots = Vec::new();
+    for fixed in &fixed_dims {
+        for level0 in 0..N {
+            for level1 in 0..N {
+                let rects = recipe_builder.get_rectangles_at(vec!(
+                    (fixed[0], level0),
+                    (fixed[1], level1)
+                ));
+                let plot_name = format!("${} = {}$ and ${} = {}$.", dim_labels[fixed[0]], level0 + 1, dim_labels[fixed[1]], level1 + 1);
+                let plot = plot::Plot {
+                    name: Some(plot_name),
+                    rectangles: rects
+                };
+                plots.push(plot);
+            }
         }
     }
+    let figure = plot::Figure {
+        name: None,
+        plots: plots,
+        dimension_tuple: dimension_tuple.clone(),
+        rows: 24,
+        columns: N
+    };
+    figure.save_svg(&String::from("tesseracts"), name);
+    figure.save_tikz(&String::from("tesseracts"), name);
+}
+
+pub fn plot_4d_cube(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
+    const N: usize = 4;
+    const M: usize = 3;
+    let mut recipe_builder = RecipeBuilder::new(N, M, vec!(dimension_tuple.clone()));
+    recipe_builder.produce(recipe);
+
+    let dim_labels = ["x", "y", "z"];
+    let dims = (0..M).collect::<Vec<usize>>();
+    let fixed_dims = combinatorics::combinations(&dims, M - 2);
+    let mut plots = Vec::new();
+
+    for fixed in &fixed_dims {
+        let dim = fixed[0];
+        for level in 0..N {
+            let rects = recipe_builder.get_rectangles_at(vec!(
+                (dim, level)
+            ));
+
+            let square_name = utils::list_except(&dim_labels, &[dim_labels[dim]]).join("");
+            let plot_name = format!("{}-square at {}={}", square_name, dim_labels[dim], level + 1);
+
+            let plot = plot::Plot {
+                name: Some(plot_name),
+                rectangles: rects
+            };
+            plots.push(plot);
+        }
+    }
+    let figure = plot::Figure {
+        name: None,
+        plots: plots,
+        dimension_tuple: dimension_tuple.clone(),
+        rows: 3,
+        columns: N
+    };
+    figure.save_svg(&String::from("cubes"), name);
+    figure.save_tikz(&String::from("cubes"), name);
 }

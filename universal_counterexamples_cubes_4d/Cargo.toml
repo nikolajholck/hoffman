@@ -5,4 +5,3 @@ authors = ["Nikolaj von Holck <mail@nikolajholck.dk>"]
 
 [dependencies]
 hoffman = { path = "../hoffman" }
-serde_json = "1.0.7"
