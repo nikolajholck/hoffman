@@ -82,7 +82,8 @@ fn permutations_test() {
 
     assert!(permutations(&b, 1).len() == 3);
     assert_eq!(permutations(&b, 1), [[76], [76], [0]]);
-    assert_eq!(permutations(&b, 0), [[]]);
+    let empty: Vec<Vec<usize>> = vec!(vec!());
+    assert_eq!(permutations(&b, 0), empty);
 }
 
 #[test]
@@ -99,7 +100,8 @@ fn combinations_test() {
     assert!(combinations(&b, 1).len() == 3);
     assert!(combinations(&b, 2).len() == 3);
     assert!(combinations(&b, 3).len() == 1);
-    assert_eq!(combinations(&b, 0), [[]]);
+    let empty: Vec<Vec<usize>> = vec!(vec!());
+    assert_eq!(combinations(&b, 0), empty);
     assert_eq!(combinations(&b, 1), [[76], [76], [0]]);
     assert_eq!(combinations(&b, 2), [[76, 76], [76, 0], [76, 0]]);
     assert_eq!(combinations(&b, 3), [[76, 76, 0]]);
@@ -123,7 +125,8 @@ fn combinations_with_repetition_test() {
     assert!(combinations_with_repetition(&b, 1).len() == 3);
     assert!(combinations_with_repetition(&b, 2).len() == 9);
     assert!(combinations_with_repetition(&b, 3).len() == 27);
-    assert_eq!(combinations_with_repetition(&c, 0), [[]]);
+    let empty: Vec<Vec<usize>> = vec!(vec!());
+    assert_eq!(combinations_with_repetition(&c, 0), empty);
     assert_eq!(combinations_with_repetition(&c, 1), [[0], [1]]);
     assert_eq!(combinations_with_repetition(&c, 2), [[0, 0], [0, 1], [1, 0], [1, 1]]);
     assert_eq!(combinations_with_repetition(&c, 3), [[0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1],
