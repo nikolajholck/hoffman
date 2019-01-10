@@ -26,7 +26,8 @@ fn backtrack_tesseracts(dimension_tuples: &Vec<DimensionTuple>) {
     let mut recipe_builder = RecipeBuilder::new(N, N, dimension_tuples.clone());
 
     let max_tries = N * (N - 1) * (N - 2) * (N - 3);
-    let coords = utils::make_coords(N, N);
+    let coords = recipe_builder.get_recipe().map.coords().clone();
+
     println!("Coords: {:?}", coords.len());
 
     let mut records = [[[[0; N]; N]; N]; N];

@@ -8,15 +8,6 @@ use std::iter::repeat;
 
 const N: usize = 4;
 
-type Shape = Vec<usize>;
-
-pub fn make_coords(shape: &Shape) -> Vec<Coord> {
-    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
-        (0..size).collect()
-    }).collect();
-    combinatorics::product(&axes)
-}
-
 fn projection(coord: &Coord, projection: &Vec<usize>) -> Vec<usize> {
     projection.iter().map(|&i| coord[i]).collect()
 }
@@ -103,7 +94,7 @@ impl Group {
     }
 
     fn many(contents: Vec<Group>, shape: &Shape) -> Group {
-        let new_contents: HashMap<Coord, Group> = make_coords(shape).iter().zip(contents.iter()).map(|(coord, group)| {
+        let new_contents: HashMap<Coord, Group> = utils::make_coords(shape).iter().zip(contents.iter()).map(|(coord, group)| {
             (coord.clone(), group.clone())
         }).collect();
         Group {
@@ -119,15 +110,16 @@ fn main() {
     let dimension_tuple = vec!(8, 9, 10, 12); // Wide
     //let dimension_tuple = vec!(10, 12, 13, 14); // Narrow
 
+    let mut map = NdArray::new(&vec!(2, 2));
+    map.insert(&vec!(0, 0), vec!(0, 1));
+    map.insert(&vec!(0, 1), vec!(1, 0));
+    map.insert(&vec!(1, 0), vec!(1, 0));
+    map.insert(&vec!(1, 1), vec!(0, 1));
+
     let solution2d_one = Recipe {
         n: 2,
         m: 2,
-        map: vec!(
-            (vec!(0, 0), vec!(0, 1)),
-            (vec!(0, 1), vec!(1, 0)),
-            (vec!(1, 0), vec!(1, 0)),
-            (vec!(1, 1), vec!(0, 1))
-        ).into_iter().collect()
+        map: map
     };
     let solution2d_two = solution2d_one.pre_permute(&vec!(1, 0));
 
@@ -158,7 +150,7 @@ fn main() {
     make_statistics(&recipes);
     check_duality(&recipes, &dimension_tuple);
 
-    println!("Time spent making recipe: {:?} s", now.elapsed().as_secs());
+    println!("Time spent making recipe: {:?}", now.elapsed());
 }
 
 fn combine(brick: &Orientation, solution_a: &Recipe, solution_b: &Recipe) -> Group {
@@ -216,14 +208,15 @@ fn combine(brick: &Orientation, solution_a: &Recipe, solution_b: &Recipe) -> Gro
 }
 
 fn convert_to_recipe(group: &Group) -> Recipe {
-    let coords = utils::make_coords(N, N);
     let recipe_shape: Shape = repeat(N).take(N).collect();
+    let mut map = NdArray::new(&recipe_shape);
+    for coord in map.coords().clone() {
+        map.insert(&coord, group.get_brick(&coord, &recipe_shape));
+    }
     Recipe {
         n: N,
         m: N,
-        map: coords.iter().map(|coord| {
-            (coord.clone(), group.get_brick(coord, &recipe_shape))
-        }).collect()
+        map: map
     }
 }
 
@@ -233,16 +226,11 @@ fn check_duality(recipes: &Vec<Recipe>, dimension_tuple: &DimensionTuple) {
     for permutation in &permutations {
         println!("Checking for dual using permutation {:?}:", permutation);
         let res: usize = recipes.iter().filter(|recipe| {
-            check_permutation(recipe, permutation, dimension_tuple)
+            let recipe_builder = RecipeBuilder::generate(&recipe.pre_permute(permutation), vec!(dimension_tuple.clone()));
+            recipe_builder.validate()
         }).count();
         println!("Okay count: {}", res);
     }
-}
-
-fn check_permutation(recipe: &Recipe, permutation: &Orientation, dimension_tuple: &DimensionTuple) -> bool {
-    let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
-    recipe_builder.produce(&recipe.pre_permute(permutation));
-    recipe_builder.validate()
 }
 
 fn make_statistics(recipes: &Vec<Recipe>) {

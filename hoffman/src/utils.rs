@@ -5,13 +5,13 @@ use std::path::Path;
 use std::collections::HashSet;
 
 use combinatorics::*;
-use super::{Coord, IntType};
+use super::{Coord, Shape, IntType};
 
-pub fn make_coords(n: usize, m: usize) -> Vec<Coord> {
-    let axes: Vec<Vec<usize>> = (0..m).map(|_| {
-        (0..n).collect()
+pub fn make_coords(shape: &Shape) -> Vec<Coord> {
+    let axes: Vec<Vec<usize>> = shape.iter().map(|&size| {
+        (0..size).collect()
     }).collect();
-    product(axes.as_slice())
+    product(&axes)
 }
 
 pub fn list_has_unique_sums(list: &[IntType]) -> bool {

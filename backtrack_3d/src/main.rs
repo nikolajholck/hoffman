@@ -39,7 +39,7 @@ fn main() {
 fn backtrack_cubes(dimension_tuples: &Vec<DimensionTuple>) -> Vec<Recipe> {
     let mut recipe_builder = RecipeBuilder::new(N, N, dimension_tuples.clone());
 
-    let coords = utils::make_coords(N, N);
+    let coords = recipe_builder.get_recipe().map.coords().clone();
     println!("Coords: {:?}", coords.len());
     let mut recipes = Vec::new();
 
@@ -127,16 +127,14 @@ fn check_duality(recipes: &Vec<Recipe>, dimension_tuples: &Vec<DimensionTuple>) 
 }
 
 fn check_permutation(recipe: &Recipe, permutation: &Orientation, dimension_tuples: &Vec<DimensionTuple>) -> bool {
-    let mut recipe_builder = RecipeBuilder::new(N, N, dimension_tuples.clone());
-    recipe_builder.produce(&recipe.pre_permute(permutation));
+    let recipe_builder = RecipeBuilder::generate(&recipe.pre_permute(permutation), dimension_tuples.clone());
     recipe_builder.validate()
 }
 
 pub fn plot_multiple(recipes: &Vec<Recipe>, dimension_tuple: &DimensionTuple, name: &String) {
     let mut squares = Vec::new();
     for (q, recipe) in recipes.iter().enumerate() {
-        let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
-        recipe_builder.produce(recipe);
+        let recipe_builder = RecipeBuilder::generate(recipe, vec!(dimension_tuple.clone()));
         for dim in 0..1 {
             for level in 0..N {
                 let rects = recipe_builder.get_rectangles_at(vec!((dim, level)));

@@ -2,6 +2,7 @@ extern crate hoffman;
 
 use hoffman::*;
 use std::time::Instant;
+use std::iter::repeat;
 
 const N: usize = 4;
 const M: usize = 2;
@@ -57,7 +58,8 @@ fn backtrack_kernels(dimension_tuples: &Vec<DimensionTuple>) -> Vec<Recipe> {
     let indices: Vec<usize> = (0..N).collect();
     let perms = combinatorics::permutations(&indices.as_slice(), M);
 
-    let coords: Vec<Coord> = utils::make_coords(M, M).iter().map(|coord| {
+    let kernel_shape = repeat(M).take(M).collect();
+    let coords: Vec<Coord> = utils::make_coords(&kernel_shape).iter().map(|coord| {
         coord.iter().map(|v| v + 1 ).collect::<Coord>()
     }).collect();
     //println!("Kernel coordinates: {:?}", coords);
@@ -102,7 +104,7 @@ fn backtrack_kernels(dimension_tuples: &Vec<DimensionTuple>) -> Vec<Recipe> {
 fn backtrack_squares(dimension_tuples: &Vec<DimensionTuple>, kernel: &Recipe) -> (usize, usize) {
     let mut recipe_builder = RecipeBuilder::new(N, M, dimension_tuples.clone());
 
-    let coords = utils::make_coords(N, M);
+    let coords = recipe_builder.get_recipe().map.coords().clone();
     //println!("Coordinates: {:?}", coords);
 
     let indices: Vec<usize> = (0..N).collect();

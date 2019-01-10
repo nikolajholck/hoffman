@@ -157,8 +157,7 @@ impl Figure {
 
 pub fn plot_3d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
     const N: usize = 3;
-    let mut recipe_builder = RecipeBuilder::new(N, N, vec!(dimension_tuple.clone()));
-    recipe_builder.produce(recipe);
+    let recipe_builder = RecipeBuilder::generate(recipe, vec!(dimension_tuple.clone()));
 
     let dim_labels = ["x", "y", "z"];
     let mut plots = Vec::new();
@@ -188,8 +187,7 @@ pub fn plot_3d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String)
 pub fn plot_4d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
     const N: usize = 4;
     const M: usize = 4;
-    let mut recipe_builder = RecipeBuilder::new(N, M, vec!(dimension_tuple.clone()));
-    recipe_builder.produce(recipe);
+    let recipe_builder = RecipeBuilder::generate(recipe, vec!(dimension_tuple.clone()));
 
     let dim_labels = ["x", "y", "z", "w"];
     let dims: Vec<usize> = (0..M).collect();
@@ -225,8 +223,7 @@ pub fn plot_4d(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String)
 pub fn plot_4d_cube(recipe: &Recipe, dimension_tuple: &DimensionTuple, name: &String) {
     const N: usize = 4;
     const M: usize = 3;
-    let mut recipe_builder = RecipeBuilder::new(N, M, vec!(dimension_tuple.clone()));
-    recipe_builder.produce(recipe);
+    let recipe_builder = RecipeBuilder::generate(recipe, vec!(dimension_tuple.clone()));
 
     let dim_labels = ["x", "y", "z"];
     let dims = (0..M).collect::<Vec<usize>>();
