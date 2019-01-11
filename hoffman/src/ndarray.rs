@@ -20,37 +20,28 @@ impl<T: Clone + PartialEq> NdArray<T> {
         }
     }
 
-    #[inline]
     pub fn index(&self, coord: &Coord) -> usize {
         assert!(coord.len() == self.n);
         self.shape.iter().zip(coord.iter()).fold(0, |acc, (m, i)| acc * m + i )
     }
 
-    #[inline]
     pub fn coord(&self, index: usize) -> &Coord {
         &self.coords[index]
     }
 
-    #[inline]
     pub fn contains_key(&self, coord: &Coord) -> bool {
         self.array[self.index(coord)].is_some()
     }
 
-    #[inline]
     pub fn get(&self, coord: &Coord) -> Option<&T> {
-        match &self.array[self.index(coord)] {
-            Some(v) => Some(&v),
-            None => None
-        }
+        self.array[self.index(coord)].as_ref()
     }
 
-    #[inline]
     pub fn insert(&mut self, coord: &Coord, value: T) {
         let index = self.index(&coord);
         self.array[index] = Some(value);
     }
 
-    #[inline]
     pub fn remove(&mut self, coord: &Coord) -> Option<T> {
         let index = self.index(&coord);
         self.array[index].take()
@@ -76,7 +67,6 @@ impl<T: Clone + PartialEq> NdArray<T> {
         &self.coords
     }
 
-    #[inline]
     pub fn map<F>(&self, f: F) -> Self
     where F: FnMut((&Coord, &T)) -> (Coord, T) {
         let mut res = Self::new(&self.shape);
@@ -86,7 +76,6 @@ impl<T: Clone + PartialEq> NdArray<T> {
         res
     }
 
-    #[inline]
     pub fn iter(&self) -> NdArrayIter<T> {
         NdArrayIter {
             array: &self,
@@ -103,7 +92,6 @@ pub struct NdArrayIter<'a, T> {
 impl<'a, T: Clone + PartialEq> Iterator for NdArrayIter<'a, T> {
     type Item = (&'a Coord, &'a T);
 
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let length = self.array.array.len();
         while self.current_index < length {

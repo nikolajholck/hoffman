@@ -48,10 +48,6 @@ impl RecipeBuilder {
         &self.recipe
     }
 
-    pub fn get_hyper_rectangles(&self, coord: &Coord) -> Vec<&HyperRectangle> {
-        self.packings.iter().map(|packing| packing.get(coord).unwrap()).collect()
-    }
-
     pub fn validate(&self) -> bool {
         self.recipe.map.coords().iter().all(|coord| {
             !self.has_overlaps(coord)
@@ -64,16 +60,11 @@ impl RecipeBuilder {
 
         for (packing, dimension_tuple) in self.packings.iter_mut().zip(self.dimension_tuples.iter()) {
             let hyper_rectangle = {
-                let foundations = (0..self.m).map(|dim| {
-                    if coord[dim] == 0 { return None }
-                    let mut index = coord.clone();
-                    index[dim] -= 1;
-                    packing.get(&index)
-                }).collect::<Vec<_>>();
-                foundations.iter().enumerate().map(|(dim, foundation)| {
-                    let begin = match foundation {
-                        Some(hyper_rectangle) => hyper_rectangle[dim].end,
-                        None => 0
+                (0..self.m).map(|dim| {
+                    let begin = if coord[dim] == 0 { 0 } else {
+                        let mut index = coord.clone();
+                        index[dim] -= 1;
+                        packing.get(&index).unwrap()[dim].end
                     };
                     Interval {
                         begin: begin,
@@ -153,9 +144,11 @@ impl RecipeBuilder {
 
             // Check for overlap.
             for neighbour in &neighbours {
-                if neighbour == coord || !packing.contains_key(neighbour) { continue }
-                let other_hyper_rectangle = &packing.get(neighbour).unwrap();
-
+                if neighbour == coord { continue }
+                let other_hyper_rectangle = match packing.get(neighbour) {
+                    Some(other) => other,
+                    None => continue
+                };
                 // Check if any of the packings has an overlap.
                 if hyper_rectangle.iter().zip(other_hyper_rectangle.iter()).all(|(a, b)| a.intersects(b) ) {
                     return true
@@ -195,12 +188,12 @@ impl RecipeBuilder {
 
                         if other_coords.iter().any(|coord| !packing.contains_key(coord)) { continue }
 
-                        let other_hyper_rectangles: Vec<&HyperRectangle> = other_coords.iter().map(|coord| {
+                        let other_hyper_rectangles = other_coords.iter().map(|coord| {
                             packing.get(coord).unwrap()
-                        }).collect();
+                        });
 
                         if foundation_hyper_rectangle[dim].end > this_hyper_rectangle[dim].end
-                        && directions.iter().zip(other_hyper_rectangles.iter()).all(|(&dir, other)| {
+                        && directions.iter().zip(other_hyper_rectangles).all(|(&dir, other)| {
                             foundation_hyper_rectangle[dir].end > other[dir].end
                         }) {
                             return true
