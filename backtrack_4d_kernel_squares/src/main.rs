@@ -33,7 +33,7 @@ fn main() {
     let now = Instant::now();
     let unique_kernels = backtrack_kernels(&dimension_tuples);
     println!("Unique kernel count: {:?}", unique_kernels.len());
-    println!("Time spent making kernels: {:?} s", now.elapsed().as_secs());
+    println!("Time spent making kernels: {:?}", now.elapsed());
 
     for (i, kernel) in unique_kernels.iter().filter(|k| k.is_self_symmetric()).enumerate() {
         let sub_group_index = kernel.symmetries().iter().filter(|&s| s == kernel).count();
@@ -43,12 +43,19 @@ fn main() {
 
     println!("Will determine number of unique squares...");
     let now = Instant::now();
-    let (unique_square_count, total_iterations) = unique_kernels.iter().map(|kernel| {
-        backtrack_squares(&dimension_tuples, &kernel)
-    }).fold((0, 0), |acc, v| (acc.0 + v.0, acc.1 + v.1));
+    let mut unique_square_count: usize = 0;
+    let mut total_iterations: usize = 0;
+    for (i, kernel) in unique_kernels.iter().enumerate() {
+        let (count, iterations) = backtrack_squares(&dimension_tuples, &kernel);
+        unique_square_count += count;
+        total_iterations += iterations;
+        if i % 10 == 0 {
+            println!("{:.2}%", 100.0 * i as f64 / unique_kernels.len() as f64);
+        }
+    }
     println!("Total unique square count: {:?}", unique_square_count);
     println!("Total iterations: {:?}", total_iterations);
-    println!("Time spent making squares: {:?} s", now.elapsed().as_secs());
+    println!("Time spent making squares: {:?}", now.elapsed());
 }
 
 fn backtrack_kernels(dimension_tuples: &Vec<DimensionTuple>) -> Vec<Recipe> {
@@ -156,8 +163,10 @@ fn backtrack_squares(dimension_tuples: &Vec<DimensionTuple>, kernel: &Recipe) ->
     }
     let before_count = squares.len();
     let unique_squares = if kernel.is_self_symmetric() {
+        let now = Instant::now();
         let unique = Recipe::find_unique(squares);
         println!("Symmetric kernel: Reduced squares from {:?} to {:?}", before_count, unique.len());
+        println!("Time spent removing symmetries: {:?}", now.elapsed());
         unique
     } else {
         squares
