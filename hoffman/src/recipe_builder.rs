@@ -64,7 +64,7 @@ impl RecipeBuilder {
                     let begin = if coord[dim] == 0 { 0 } else {
                         let mut index = coord.clone();
                         index[dim] -= 1;
-                        packing.get(&index).unwrap()[dim].end
+                        packing.get(&index).map(|rect| rect[dim].end).unwrap_or(0)
                     };
                     Interval {
                         begin: begin,
